@@ -1,7 +1,5 @@
-
 ---
-title: 'PM606 Health Data Science Practicum (Summer 2024)'
-subtitle: "HELIX Project"
+title: 'Examining the Impact of Environmental Exposures on Birthweight'
 author: "Mona Bandov"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output:
@@ -12,203 +10,187 @@ output:
     code_folding: hide
 ---
 
-
-
 ```{css, echo=FALSE}
 pre {
   max-height: 200px;
   overflow-y: auto;
 }
 ```
-
 ```{r data setup, include=FALSE, echo=FALSE}
 library(knitr)
 library(summarytools) # for summarizing variables
 library(tidyverse)
 library(table1)
 library(dplyr)
-#library(Biobase)
+library(here) 
+library(kableExtra)
+library(DT)
+library(corrplot)
+library(lmtest)
+library(nnet)
 
 options(knitr.table.format = "html")
 knitr::opts_chunk$set(echo = TRUE)
-
-# folder for analysis
-
-work.dir <- here::here()
-
 # suppress warning messages for final rendering
 old.warn <- getOption("warn")
 options(warn=-1)
 
+# folder for analysis
+work.dir <- here::here()
 ```
-
 
 HELIX.RData Download: 
 ```{r}
-load("~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/HELIX.RData")
+helix_file_path <- "~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/HELIX.RData"
+load(helix_file_path)
 ```
 
 Metabol_serum.RData Download:
 ```{r}
- load("~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/metabol_serum.RData")
+
+metabol_serum_file_path <- "~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/metabol_serum.RData"
+load(metabol_serum_file_path)
 ```
 
 
-## PM606 Health Data Science Practicum: Final Report and Poster Project Instructions
+# Abstract
 
-The Master of Science in Public Health Data Science at USC has a summer practicum where students are tasked with preparing a report and presentation based on their analysis of external data and a set of interesting research questions. The HELIX study will provide the data for the practicum. These data will provide students with a unique learning experience where they must access a data source and deal with a study consisting of \~1000 participants and many variables. Students must apply analytic tools that they have learned through the core courses of the Data Science program including data wrangling, data visualization, regression analysis, and machine learning.
+This study examines the impact of environmental exposures during pregnancy on birthweight. Using data from the HELIX study, we apply ........ [INSERT MORE STUFF HERE]
 
-## HELIX Project Description:
+Hypothesis: 
+
+How do prenatal dietary intake and concentrations of prenatal phthalate exposures influence body mass index (BMI)  for children 6-11 years old  while controlling for  child age at examinations and gestational age at birth, and can urine metabolomics data improve predictive models of BMI using statistical and machine learning tools? [ need to edit]
+
+# Introduction
+
+The relationship between prenatal environmental exposures and childhood health outcomes is important, especially in understanding how prenatal factors influence long-term health in children. This data project aims to explore the influence of prenatal dietary intake and phthalate exposure concentrations on body mass index (BMI) in children aged 6 to 11 years. Phthalates, commonly found in plastics and personal care products, are known endocrine disruptors that may impact fetal development and childhood growth patterns ([Valvi et al., 2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8157593/)). Previous studies have shown that prenatal exposure to phthalates is associated with an increased risk of obesity and metabolic disorders in children ([Luo et al., 2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7559247/)). By controlling for key variables such as child age at examinations and gestational age at birth, this project seeks to examine the direct and interactive effects of these prenatal exposures on BMI.
+
+Recent studies emphasize the important role of maternal diet during pregnancy, demonstrating that balanced maternal nutrition can mitigate the adverse effects of environmental exposures like phthalates on child BMI, suggesting that improved dietary practices during pregnancy can lead to better health outcomes for children ([NCBI, 2024](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9824240/)).
+
+Phthalate exposure has been linked to various health issues, including obesity, type II diabetes, thyroid dysfunction, higher blood pressure, precocious puberty, and reproductive effects. It also impacts the respiratory system (allergy, asthma) and nervous system (delayed neurodevelopment, social impairment) ([Serrano et al., 2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7483495/)).
+
+Furthermore, this project looks at  whether urine metabolomics data can improve predictive models of BMI using statistical and machine learning approaches. Integrating metabolomics data helps to understand the biochemical pathways linking prenatal exposures (diet and phthalates) to childhood health outcomes. This project aims to provide insights into the prevention and management of childhood obesity and related health conditions.
+
+# Methods
+
+[INSERT MORE STUFF HERE LATER]
+
+## Data
+
+The complexity of exposure to environmental contaminants has increased due to evolving environmental and lifestyle factors. The exposome includes all environmental (non-genetic) exposures an individual encounters from conception through old age. The HELIX (Human Early-Life Exposome) project focuses on the early-life exposome, which integrates all environmental hazards that mothers and children are exposed to and linking these exposures to health, growth, and development risks.
+
+Pregnancy and early childhood are critical times when children are more vulnerable to environmental damage, which can have lifelong effects. Understanding the exposome during these periods can help prevent diseases, since early interventions can change biological foundation and promote healthy development. HELIX cna help show how different environmental exposures together affect health outcomes and risks.
+
+There are six existing European birth cohort studies: Born in Bradford (BiB), Etude des Déterminants pré et postnatals du développement et de la santé de l'Enfant (EDEN), INfancia y Medio Ambiente (INMA), Kaunas Cohort (KANC), Norwegian Mother, Father and Child Cohort Study (MoBa), and Rhea Mother-Child Cohort Study. These cohorts have collected extensive data from national and EU-funded projects. HELIX supplements this data with advanced tools and methods to measure and integrate the chemical, physical, and molecular environment, linking these measurements to child health outcomes.
+
+Smartphones are utilized to measure air pollution, UV radiation, physical activity, and noise exposure. Advanced laboratory techniques identify biological markers of various chemical exposures, such as contaminants in food, consumer products, and water. HELIX has gathered extensive exposome data from mothers and children, making it the largest study on this topic. The study design is multilevel: the first level includes 31,472 mother-child pairs recruited during pregnancy across the six cohorts; the second level consists of a subcohort of 1301 mother-child pairs with detailed measurements of biomarkers, omics signatures, and health outcomes at ages 6-11 years; and the third level involves repeat-sampling panel studies with about 150 children and 150 pregnant women to collect personal exposure data.
+
+This research focuses on a subcohort of 1301 mother-child pairs to explore questions related to environmental exposures, omic data, and their impact on health outcomes. Specifically, the project will examine urine metabolomics data with Body Mass Index (BMI) as the primary outcome of interest. The goal of this project is to provide a deeper understanding of how early-life environmental exposures influence BMI, potentially providing more information on how to apply early intervention and disease prevention.
+
 
 ```{r image-helix, echo=FALSE, message=FALSE, fig.align='center', fig.cap='', out.width='100%', out.width='100%'}
-#knitr::include_graphics(paste0(work.dir, "/HELIX.png"))
+
+image_file_path <- "~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/HELIX.png"
+knitr::include_graphics(image_file_path)
+
 ```
 
-Due to our ever-changing environment and habits, exposure to environmental contaminants is growing increasingly complex. The totality of environmental (non-genetic) exposures from conception until old age is defined as the ‘exposome’. The HELIX ‘early-life exposome’ approach involves combining all environmental hazards that mothers and children are exposed to, and linking this to the health, growth, and development of children.
-
-Pregnancy and the early years of life are well recognized to be periods of high susceptibility to environmental damage with lifetime consequences. Characterization of the exposome in early life can provide very effective tools for disease prevention, given that interventions at that time can reshape biological programming and shift the body’s developmental track to the normal function. This makes early life an important starting point for development of the exposome. The results of the project will help us to better understand how various types of exposures combine to influence our risk of disease.
-
-To achieve this, HELIX uses six existing, prospective birth cohort studies in Europe (BiB, EDEN, INMA, KANC, MoBa, Rhea). These cohorts have already collected large amounts of data as part of national and EU-funded projects. To supplement the already collected data, The HELIX project will develop a comprehensive set of high-tech tools, methods, and prospective data to measure and integrate the chemical, physical and molecular environment and link this to health of children. Smart phones are used to measure air pollution, UV radiation, physical activity, and noise exposure. The latest laboratory techniques are used to measure biological indicators of many chemical exposures including contaminants in food, consumer products and water. In all, HELIX has collected full exposome data from mothers and their children, the largest study to do this. HELIX used a multilevel study design with the entire study population totaling 31,472 mother–child pairs, recruited during pregnancy, in the six existing cohorts (first level); a subcohort of 1301 mother-child pairs where biomarkers, omics signatures and child health outcomes were measured at age 6-11 years (second level); and repeat-sampling panel studies with around 150 children and 150 pregnant women aimed at collecting personal exposure data (third level). For more details on the study design see Vrijheid, Slama, et al. EHP 2014. see <https://www.projecthelix.eu/index.php/es/data-inventory> for more information regarding the study.
-
-For PM606 we will use subcohort of 1301 mother-child pairs to potentially examine multiple questions of interest related to environmental exposures, omic data and their impact on health.
-
-```{r image-helix-data, echo=FALSE, message=FALSE, fig.align='center', fig.cap='', out.width='100%', out.width='100%'}
-#knitr::include_graphics(paste0(work.dir, "/HELIX_Data.png"))
-```
+ For more details on the study design see Vrijheid, Slama, et al. EHP 2014. see <https://www.projecthelix.eu/index.php/es/data-inventory> for more information regarding the study.
 
 <br>
 
-### Expected Outcomes:
 
-The final product from this project will be a report and poster describing the data analytic process and the findings from examining the impact of environmental exposures and omic data on an outcome or phenotype.
+## Outcome
 
-Specifically, in the HELIX project you will examine the impact of environmental exposures and/or omic features on a outcome/phenotype controlling for appropriate covariates and confounders.
+The primary outcome of interest is birthweight.
 
-Environmental exposures are classified into four different categories (you should choose multiple exposures to examine):
+# Covariates
 
-1)  Outdoor exposures
-2)  Indoor air
-3)  Lifestyle **
-4)  Chemicals **
+Covariates include child age, sex, and cohort.
 
-Outcomes/Phenotypes include (you should select one outcome to examine):
+# Exposures/Risk Factors
 
-1)  Birthweight 
-2)  Asthma
-3)  Body mass index z-score
-4)  Intelligence quotient
-5)  Behavior
-6)  Body mass index (cat) **
+The main exposures of interest diet, contaminats, age, sex, and cohort
 
-There are multiple covariates or potential confounders and specific variables should be chosen given the specific hypothesis for the select exposure and outcome.
-
-In addition there are several omic data sets available for analysis including:\
-1) Proteomics: <https://www.projecthelix.eu/images/HELIX_Proteome_DataSummary.pdf>\
-2) Urine metabolomics: <https://www.projecthelix.eu/files/HELIX_urine_metabol_DataSummary.pdf>\
-3) Serum metabolomics: <https://www.projecthelix.eu/images/HELIX_serum_metabol_DataSummary.pdf>\ **
-4) Germline genetics: This is simulated data that is not real data but can be used to examine the impact of genetic data on the outcome.
-
-### Analysis Objectives:
-
-You should analyze the data with the following major steps in mind:
-
-1)  To provide descriptive statistics of the data through summary statistics
-2)  To provide descriptive statistics of the data through visualization techniques
-3)  To fit exploratory linear (for continuous) and logistic (for binary) regression models to assess effects of risk factors on outcomes (i.e., FEV, asthma) on the entire data set and by important subgroups
-4)  To develop the best fitting model, either through regression or machine learning techniques, that predicts the outcome of interest
-5)  Perform sensitivity analysis for validation using training and test sets to determine model performance
-6)  To summarize findings from the models using both tabular and graphical displays
-7)  To provide interpretation for the main findings of the final models
-8)  Prepare a report summarizing your goals, methods, and main findings
-9)  Make a poster presentation during the last day of class
-10) Methods will draw from Data Science courses on logistic regression and machine learning (including random forests, gradient boosting, clustering). The analyses will be conducted in R, and the analysis scripts and report should be published on their personal GitHub website.
-
-### Components of an Effective Report for Scientific Communication:
-
-1)  Title: A descriptive title that is informative and concise.
-
-2)  Abstract: A brief summary of the main findings and conclusions.
-
-3)  Introduction: A brief overview of the research question, the data, and the methods used.
+# Confounders/Interaction
+[INSERT LATER]
 
 
-
-Research Question:
-How do prenatal dietary intake and concentrations of prenatal phthalate exposures influence body mass index (BMI)  for children 6-11 years old  while controlling for  child age at examinations and gestational age at birth, and can urine metabolomics data improve predictive models of BMI using statistical and machine learning tools?
-
-Introduction:
-
-The relationship between prenatal environmental exposures and childhood health outcomes is important, especially in understanding how prenatal factors influence long-term health in children. This data project aims to explore the influence of prenatal dietary intake and phthalate exposure concentrations on body mass index (BMI) in children aged 6 to 11 years. Phthalates, commonly found in plastics and personal care products, are known endocrine disruptors that may impact fetal development and childhood growth patterns (Valvi et al., 2020). Previous studies have shown that prenatal exposure to phthalates is associated with an increased risk of obesity and metabolic disorders in children (Luo et al., 2020). By controlling for key variables such as child age at examinations and gestational age at birth, this project seeks to examine the direct and interactive effects of these prenatal exposures on BMI.
-
-Recent studies emphasize the important role of maternal diet during pregnancy, demonstrating that balanced maternal nutrition can mitigate the adverse effects of environmental exposures like phthalates on child BMI, suggesting that improved dietary practices during pregnancy can lead to better health outcomes for children (NCBI, 2024).
+## Model Building
+[INSERT LATER]
 
 
-Phthalate exposure has been linked to various health issues, including obesity, type II diabetes, thyroid dysfunction, higher blood pressure, precocious puberty, and reproductive effects. It also impacts the respiratory system (allergy, asthma) and nervous system (delayed neurodevelopment, social impairment) (Serrano et al., 2021).
+## Model Validation
+[INSERT LATER]
 
-Furthermore, this project investigates whether urine metabolomics data can improve predictive models of BMI using statistical and machine learning approaches. Integrating metabolomics data helps to understand the biochemical pathways linking prenatal exposures (diet and phlates) to childhood health outcomes. This project aims to provide insights into the prevention and management of childhood obesity and related health conditions.
+## Results
+[INSERT LATER]
+
+# #Discussion
+[INSERT LATER]
+
+# #Conclusions
+[INSERT LATER]
+
+# References
+
+1. Reference 1
+2. Reference 2
+3. Reference 3
+[INSERT LATER]
+
+# Appendices
+[INSERT LATER]
 
 
+### Urine Metabolomics:
 
-
-4)  Methods: A detailed description of the data, the methods used, and the analysis plan.\
-
-    \item[]
-
-    4.1) Data: A description of the data, including the sample size, the variables collected, and any missing data.\
-
-    \item[]
-
-    4.2) Methods: A description of the methods used to analyze the data, including any statistical models or machine learning techniques used. This section should include information on the Outcome, Covariates, Exposures/risk factors, Confounders, Sensitivity analysis, Model building and Model validation.
-
-5)  Results: A summary of the main findings, including tables and figures.
-
-6)  Discussion: An interpretation of the main findings, including a discussion of the limitations and implications of the results.
-
-7)  Conclusions: A summary of the main findings and their implications for future research.
-
-8)  References: A list of all references cited in the report.
-
-9)  Appendices: Any additional information that is relevant to the report, such as code or data.
-
-### Poster Preparation Instructions:
-
-Each person will produce one poster. Your poster should include:
-
-1.  A descriptive title and a listing of contributors along with affiliations.
-2.  A section for each of the following:
-
--   Key messages,
--   Objective
--   Background
--   Methods
--   Study and data description
--   Main results findings
--   Conclusions
-
-3.  Acknowledgements of funding sources, and individuals/groups that have helped with the conduct of the project and/or preparation of the poster.
-4.  A disclaimer as follows: “Note that the results on this poster are based on a dataset that includes only a non-representative sample from the actual study cohort. Hence, it is solely intended for instructional purposes and should not be used to draw definitive (and substantively meaningful) conclusions about actual study objectives.”
+Urine metabolomics: <https://www.projecthelix.eu/files/HELIX_urine_metabol_DataSummary.pdf>\
 
 ## Data Description and Codebook
 
-```{r load data and coddebook, echo=TRUE}
-#load(paste0(work.dir, "/HELIX.RData"))
-#kable(codebook, align="c")
 
+```{r}
+codebook_file_path <- "~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/HELIX.RData"
+load(codebook_file_path)
 
-```
+#  Chemicals
+filtered_codebook_chemicals <- codebook %>%
+  filter(domain == "Chemicals" & 
+         family == "Phthalates" & 
+         period == "Pregnancy" & 
+         variable_name != "hs_sumDEHP_madj_Log2")
 
-## Data Summary for Covariates, Phenotypes, and Exposures {.tabset}
+# Covariates 
+filtered_codebook_covariates <- codebook %>%
+  filter(domain == "Covariates" & 
+         variable_name %in% c("e3_sex_None", "h_cohort", "hs_child_age_None"))
 
-### Data Summary Covariates
+# Phenotype
+filtered_codebook_phenotype <- codebook %>%
+  filter(domain == "Phenotype" & 
+         variable_name %in% c("hs_zbmi_who", "hs_bmi_c_cat"))
 
-```{r covariate summary, results='asis'}
-summarytools::view(dfSummary(covariates, style = 'grid', plain.ascii = FALSE, valid.col = FALSE, headings = FALSE), method = "render")
-```
+# Lifestyle
+filtered_codebook_lifestyles <- codebook %>%
+  filter(domain == "Lifestyles" & period == "Pregnancy" & subfamily == "Diet")
 
-### Data Summary Phenotypes
+# Combining all the information 
+combined_codebook <- bind_rows(
+  filtered_codebook_chemicals,
+  filtered_codebook_covariates,
+  filtered_codebook_phenotype,
+  filtered_codebook_lifestyles
+)
 
-```{r phenotype summary}
-summarytools::view(dfSummary(phenotype, style = 'grid', plain.ascii = FALSE, valid.col = FALSE, headings = FALSE), method = "render")
+# Final Display
+datatable(combined_codebook, 
+          options = list(pageLength = 10, 
+                         autoWidth = TRUE, 
+                         dom = 'Bfrtip', 
+                         buttons = c('copy', 'csv', 'excel', 'pdf', 'print'), 
+                         searchHighlight = TRUE),
+          caption = "Filtered Codebook for HELIX Data")
 ```
 
 
@@ -216,130 +198,397 @@ summarytools::view(dfSummary(phenotype, style = 'grid', plain.ascii = FALSE, val
 ### Data Summary Exposures: Lifestyles
 
 ```{r Lifestyles summary, attr.output='style="max-height: 100px;"',}
-selectExposures <- codebook$variable_name[codebook$domain=="Lifestyles"]
-summarytools::view(dfSummary(exposome[,names(exposome) %in% selectExposures], style = 'grid', plain.ascii = FALSE, valid.col = FALSE, headings = FALSE), method = "render")
+#Lifestyle 
+filtered_codebook_lifestyles <- codebook %>%
+  filter(domain == "Lifestyles" & period == "Pregnancy")
+selectExposures <- filtered_codebook_lifestyles$variable_name
+summarytools::view(dfSummary(exposome[,names(exposome) %in% selectExposures], 
+                             style = 'grid', 
+                             plain.ascii = FALSE, 
+                             valid.col = FALSE, 
+                             headings = FALSE), 
+                   method = "render")
 ```
+
 
 ### Data Summary Exposures: Chemicals
 
 ```{r Chemicals summary, attr.output='style="max-height: 100px;"',}
-selectExposures <- codebook$variable_name[codebook$domain=="Chemicals"]
-summarytools::view(dfSummary(exposome[,names(exposome) %in% selectExposures], style = 'grid', plain.ascii = FALSE, valid.col = FALSE, headings = FALSE), method = "render")
+#Chemical
+filtered_codebook_chemicals <- codebook %>%
+  filter(domain == "Chemicals" & 
+         family == "Phthalates" & 
+         period == "Pregnancy" & 
+         variable_name != "hs_sumDEHP_madj_Log2")
+selectExposures <- filtered_codebook_chemicals$variable_name
+summarytools::view(dfSummary(exposome[,names(exposome) %in% selectExposures], 
+                             style = 'grid', 
+                             plain.ascii = FALSE, 
+                             valid.col = FALSE, 
+                             headings = FALSE), 
+                   method = "render")
 ```
 
 
+### Data Summary Exposures: Covariate 
+
+```{r}
+# Covariates 
+filtered_codebook_covariates <- codebook %>%
+  filter(variable_name %in% c("e3_sex_None", "h_cohort", "hs_child_age_None"))
+selectCovariates <- filtered_codebook_covariates$variable_name
+summarytools::view(dfSummary(covariates[,names(covariates) %in% selectCovariates], 
+                             style = 'grid', 
+                             plain.ascii = FALSE, 
+                             valid.col = FALSE, 
+                             headings = FALSE), 
+                   method = "render")
+```
+
+### Data Summary Exposures: Phenotype
+```{r}
+# Phenotype
+filtered_codebook_phenotype <- codebook %>%
+  filter(domain == "Phenotype" & 
+         variable_name %in% c("hs_zbmi_who", "hs_bmi_c_cat"))
+selectPhenotypes <- filtered_codebook_phenotype$variable_name
+summarytools::view(dfSummary(phenotype[,names(phenotype) %in% selectPhenotypes], 
+                             style = 'grid', 
+                             plain.ascii = FALSE, 
+                             valid.col = FALSE, 
+                             headings = FALSE), 
+                   method = "render")
+```
+
+
+## Data Exploration 
 
 
 --WORKSPACE--
 
-
-# Combining covariates with phenotype
-```{r}
-
-data1 <- cbind(covariates, phenotype)
-data1 <- data1[, !duplicated(colnames(data1))]
-head(data1)
-
-```
-#Selecting Important Categories
-```{r}
-#Includes covariates and phenotype 
-data1 <- data1 %>%
-  select(ID, h_cohort, e3_sex_None, e3_gac_None,  hs_child_age_None, hs_zbmi_who, hs_c_height_None, hs_c_weight_None, hs_bmi_c_cat)
-data1
-
-#Maybe calculate BMI?
-#hs_c_height_None
-#hs_c_weight_None
-
-```
-
+# Combining covariates with phenotype (Full Data)
 
 ```{r}
-# columns for pregnant phthalates
-phthalates_columns <- c(
-  "hs_mbzp_madj_Log2",
-  "hs_mecpp_madj_Log2",
-  "hs_mehhp_madj_Log2",
-  "hs_mehp_madj_Log2",
-  "hs_meohp_madj_Log2",
-  "hs_mep_madj_Log2",
-  "hs_mibp_madj_Log2",
-  "hs_mnbp_madj_Log2",
-  "hs_ohminp_madj_Log2",
-  "hs_oxominp_madj_Log2",
-  "hs_sumDEHP_madj_Log2"
-)
+# Lifestyle variables
+filtered_codebook_lifestyles <- codebook %>%
+  filter(domain == "Lifestyles" & period == "Pregnancy")
+selectExposures_lifestyle <- filtered_codebook_lifestyles$variable_name
 
-# columns for diet of pregnant women
-diet_columns <- c(
-  "e3_alcpreg_yn_None",
-  "h_cereal_preg_Ter",
-  "h_dairy_preg_Ter",
-  "h_fastfood_preg_Ter",
-  "h_fish_preg_Ter",
-  "h_folic_t1_None",
-  "h_fruit_preg_Ter",
-  "h_legume_preg_Ter",
-  "h_meat_preg_Ter",
-  "h_pamod_t3_None",
-  "h_pavig_t3_None",
-  "h_veg_preg_Ter"
-)
+# Chemical variables
+filtered_codebook_chemicals <- codebook %>%
+  filter(domain == "Chemicals" & family == "Phthalates" & period == "Pregnancy" & variable_name != "hs_sumDEHP_madj_Log2")
+selectExposures_chemicals <- filtered_codebook_chemicals$variable_name
 
+# Covariate variables
+filtered_codebook_covariates <- codebook %>%
+  filter(variable_name %in% c("e3_sex_None", "h_cohort", "hs_child_age_None"))
+selectCovariates <- filtered_codebook_covariates$variable_name
 
-all_columns <- c(phthalates_columns, diet_columns)
-extracted_exposome <- exposome %>% select(all_of(all_columns))
-head(extracted_exposome)
+# Phenotype variables
+filtered_codebook_phenotype <- codebook %>%
+  filter(domain == "Phenotype" & variable_name %in% c("hs_zbmi_who", "hs_bmi_c_cat"))
+selectPhenotypes <- filtered_codebook_phenotype$variable_name
+all_selected_variables <- c("ID", selectExposures_lifestyle, selectExposures_chemicals, selectCovariates, selectPhenotypes, "age")
 
-```
-#summary stat
-```{r}
-colnames(data1)
-#sex,age, cohort?
-summary_table <- dfSummary(data1, 
-                           varnumbers = TRUE, 
-                           valid.col = FALSE, 
-                           graph.col = TRUE, 
-                           style = "multiline")
+# Subset the data
+subset_exposome <- exposome %>% select(all_of(selectExposures_lifestyle), all_of(selectExposures_chemicals))
+subset_covariates <- covariates %>% select(all_of(selectCovariates))
+subset_phenotype <- phenotype %>% select(all_of(selectPhenotypes))
 
-print(summary_table, method = "render", plain.ascii = FALSE, style = "grid")
-stview(summary_table, file = "enhanced_summary_table.html")
+# Finl Merge 
+exposome_phenotype_covariates <- exposome %>%
+  select(ID, all_of(selectExposures_lifestyle), all_of(selectExposures_chemicals)) %>%
+  left_join(covariates %>% select(ID, all_of(selectCovariates)), by = "ID") %>%
+  left_join(phenotype %>% select(ID, all_of(selectPhenotypes)), by = "ID")
 
 ```
 
 
-```{r}
+Decided to not use hs_c_height_None and hs_c_weight_None since the distribution did not look normally distributed.
+Note: Choosing between z-bmi and cat-bmi?? What sohuld I do?
+I will use category instead since it was r=.02
 
-data1 <- data1 %>%
+Table by Covariates: Sex, Cohort, Age
+
+I was considering age, but it is continous, should I bin it to make it categorical?
+```{r}
+exposome_phenotype_covariates <- exposome_phenotype_covariates %>%
   mutate(
     e3_sex_None = factor(e3_sex_None),
-    h_cohort = factor(h_cohort))
+    h_cohort = factor(h_cohort),
+    hs_bmi_c_cat = factor(hs_bmi_c_cat)
+  )
 
+# Labels
+label(exposome_phenotype_covariates$e3_sex_None) <- "Sex"
+label(exposome_phenotype_covariates$h_cohort) <- "Cohort"
+label(exposome_phenotype_covariates$hs_child_age_None) <- "Child's Age"
+label(exposome_phenotype_covariates$hs_zbmi_who) <- "BMI (Z)"
+label(exposome_phenotype_covariates$e3_alcpreg_yn_None) <- "Alcohol During Pregnancy"
+label(exposome_phenotype_covariates$h_cereal_preg_Ter) <- "Cereal Intake During Pregnancy"
+label(exposome_phenotype_covariates$h_dairy_preg_Ter) <- "Dairy Intake During Pregnancy"
+label(exposome_phenotype_covariates$h_fastfood_preg_Ter) <- "Fast Food Intake During Pregnancy"
+label(exposome_phenotype_covariates$h_fish_preg_Ter) <- "Fish Intake During Pregnancy"
+label(exposome_phenotype_covariates$h_folic_t1_None) <- "Folic Acid Intake"
+label(exposome_phenotype_covariates$h_fruit_preg_Ter) <- "Fruit Intake During Pregnancy"
+label(exposome_phenotype_covariates$h_legume_preg_Ter) <- "Legume Intake During Pregnancy"
+label(exposome_phenotype_covariates$h_meat_preg_Ter) <- "Meat Intake During Pregnancy"
+label(exposome_phenotype_covariates$h_pamod_t3_None) <- "Physical Activity (Moderate)"
+label(exposome_phenotype_covariates$h_pavig_t3_None) <- "Physical Activity (Vigorous)"
+label(exposome_phenotype_covariates$h_veg_preg_Ter) <- "Vegetable Intake During Pregnancy"
+label(exposome_phenotype_covariates$hs_mbzp_madj_Log2) <- "MBzP (Log2)"
+label(exposome_phenotype_covariates$hs_mecpp_madj_Log2) <- "MECPP (Log2)"
+label(exposome_phenotype_covariates$hs_mehhp_madj_Log2) <- "MEHHP (Log2)"
+label(exposome_phenotype_covariates$hs_mehp_madj_Log2) <- "MEHP (Log2)"
+label(exposome_phenotype_covariates$hs_meohp_madj_Log2) <- "MEOHP (Log2)"
+label(exposome_phenotype_covariates$hs_mep_madj_Log2) <- "MEP (Log2)"
+label(exposome_phenotype_covariates$hs_mibp_madj_Log2) <- "MiBP (Log2)"
+label(exposome_phenotype_covariates$hs_mnbp_madj_Log2) <- "MnBP (Log2)"
+label(exposome_phenotype_covariates$hs_ohminp_madj_Log2) <- "OH-MiNP (Log2)"
+label(exposome_phenotype_covariates$hs_oxominp_madj_Log2) <- "OXO-MiNP (Log2)"
+label(exposome_phenotype_covariates$hs_bmi_c_cat) <- "BMI Category"
 
-label(data1$e3_sex_None) <- "Sex"
-label(data1$h_cohort) <- "Cohort"
-label(data1$e3_gac_None) <- "Gestational Age"
-label(data1$hs_child_age_None) <- "Child's Age"
-label(data1$hs_c_height_None) <- "Child's Height"
-label(data1$hs_c_weight_None) <- "Child's Weight"
-label(data1$hs_zbmi_who) <- "BMI (Z)"
-label(data1$hs_bmi_c_cat) <- "BMI Category"
+# continuous variables
+render_cont <- function(x) {
+  sprintf("%.2f (%.2f)", mean(x, na.rm = TRUE), sd(x, na.rm = TRUE))
+}
 
-# Units of the numeric columns
-units(data1$e3_gac_None) <- "Weeks"
-units(data1$hs_child_age_None) <- "Years"
-units(data1$hs_c_height_None) <- "cm"
-units(data1$hs_c_weight_None) <- "kg"
+# categorical variables
+render_cat <- function(x) {
+  paste0(names(table(x)), " (", table(x), ")", collapse = ", ")
+}
 
-summary_table <- table1(~ e3_sex_None + h_cohort + e3_gac_None + hs_child_age_None + hs_c_height_None + hs_c_weight_None+hs_zbmi_who  + hs_bmi_c_cat, data = data1)
+# Make sure its 27 columns
+columns <- c("age", "hs_child_age_None", "hs_zbmi_who", "e3_alcpreg_yn_None", "h_cereal_preg_Ter",
+             "h_dairy_preg_Ter", "h_fastfood_preg_Ter", "h_fish_preg_Ter", "h_folic_t1_None",
+             "h_fruit_preg_Ter", "h_legume_preg_Ter", "h_meat_preg_Ter", "h_pamod_t3_None",
+             "h_pavig_t3_None", "h_veg_preg_Ter", "hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2",
+             "hs_mehhp_madj_Log2", "hs_mehp_madj_Log2", "hs_meohp_madj_Log2", "hs_mep_madj_Log2",
+             "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2")
 
-print(summary_table)
-html_file <- "summary_table.html"
-writeLines(as.character(summary_table), con = html_file)
-print(paste("Summary table saved to", html_file))
+# stratified by cohort
+table1(~  hs_child_age_None + hs_zbmi_who + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter +
+         h_fastfood_preg_Ter + h_fish_preg_Ter + h_folic_t1_None + h_fruit_preg_Ter +
+         h_legume_preg_Ter + h_meat_preg_Ter + h_pamod_t3_None + h_pavig_t3_None +
+         h_veg_preg_Ter + hs_mbzp_madj_Log2 + hs_mecpp_madj_Log2 + hs_mehhp_madj_Log2 +
+         hs_mehp_madj_Log2 + hs_meohp_madj_Log2 + hs_mep_madj_Log2 + hs_mibp_madj_Log2 +
+         hs_mnbp_madj_Log2 + hs_ohminp_madj_Log2 + hs_oxominp_madj_Log2 | h_cohort,
+       data = exposome_phenotype_covariates,
+       render.continuous = render_cont, render.categorical = render_cat,
+       overall = TRUE, topclass = "Rtable1-shade")
 
+# stratified by sex
+table1(~  hs_child_age_None + hs_zbmi_who + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter +
+         h_fastfood_preg_Ter + h_fish_preg_Ter + h_folic_t1_None + h_fruit_preg_Ter +
+         h_legume_preg_Ter + h_meat_preg_Ter + h_pamod_t3_None + h_pavig_t3_None +
+         h_veg_preg_Ter + hs_mbzp_madj_Log2 + hs_mecpp_madj_Log2 + hs_mehhp_madj_Log2 +
+         hs_mehp_madj_Log2 + hs_meohp_madj_Log2 + hs_mep_madj_Log2 + hs_mibp_madj_Log2 +
+         hs_mnbp_madj_Log2 + hs_ohminp_madj_Log2 + hs_oxominp_madj_Log2 | e3_sex_None,
+       data = exposome_phenotype_covariates,
+       render.continuous = render_cont, render.categorical = render_cat,
+       overall = TRUE, topclass = "Rtable1-shade")
 
 ```
+
+
+
+
+
+# BMI category by Age 
+```{r}
+ggplot(exposome_phenotype_covariates, aes(x = hs_bmi_c_cat, y = hs_child_age_None)) +
+  geom_boxplot() +
+  labs(title = "Box Plot of Child's Age vs BMI Category",
+       x = "BMI Category",
+       y = "Child's Age (Years)") +
+  theme_minimal()
+```
+
+
+
+
+# BMI Cat versus Cohort
+```{r}
+cohort_data_percentage <- exposome_phenotype_covariates %>%
+  group_by(h_cohort, hs_bmi_c_cat) %>%
+  summarise(count = n()) %>%
+  group_by(h_cohort) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(cohort_data_percentage, aes(x = h_cohort, y = percentage, fill = hs_bmi_c_cat)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Bar Plot of BMI Category by Cohort (Percentages)",
+       x = "Cohort",
+       y = "Percentage",
+       fill = "BMI Category") +
+  theme_minimal()
+```
+
+
+# BMI Cat versus Sex 
+```{r}
+sex_data_percentage <- exposome_phenotype_covariates %>%
+  group_by(e3_sex_None, hs_bmi_c_cat) %>%
+  summarise(count = n()) %>%
+  group_by(e3_sex_None) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(sex_data_percentage, aes(x = e3_sex_None, y = percentage, fill = hs_bmi_c_cat)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Bar Plot of BMI Category by Sex (Percentages)",
+       x = "Sex",
+       y = "Percentage",
+       fill = "BMI Category") +
+  theme_minimal()
+```
+
+
+
+```{r}
+numeric_vars <- exposome_phenotype_covariates %>%
+  select(where(is.numeric))
+
+cor_matrix <- cor(numeric_vars, use = "complete.obs")
+corrplot(cor_matrix, method = "color", type = "upper", tl.col = "black", tl.srt = 45)
+```
+
+
+## Model Building 
+
+
+
+```{r}
+exposome_phenotype_covariates$hs_bmi_c_cat <- as.factor(exposome_phenotype_covariates$hs_bmi_c_cat)
+exposome_phenotype_covariates$e3_sex_None <- as.factor(exposome_phenotype_covariates$e3_sex_None)
+exposome_phenotype_covariates$h_cohort <- as.factor(exposome_phenotype_covariates$h_cohort)
+```
+
+
+Examine Covariates:
+```{r}
+interaction_model <- multinom(hs_bmi_c_cat ~ e3_sex_None * h_cohort + hs_child_age_None, 
+                              data = exposome_phenotype_covariates)
+summary(interaction_model)
+```
+
+
+
+Model 1: BMI_Category vs. Covariates 
+
+```{r}
+
+covariate_model <- multinom(hs_bmi_c_cat ~ e3_sex_None + h_cohort + hs_child_age_None, 
+                            data = exposome_phenotype_covariates)
+summary(covariate_model)
+```
+
+Model 2: BMI_Category vs. Lifestyle 
+```{r}
+
+lifestyle_model <- multinom(hs_bmi_c_cat ~ e3_alcpreg_yn_None + h_cereal_preg_Ter + 
+                    h_dairy_preg_Ter + h_fastfood_preg_Ter + h_fish_preg_Ter + 
+                    h_folic_t1_None + h_fruit_preg_Ter + h_legume_preg_Ter + 
+                    h_meat_preg_Ter + h_pamod_t3_None + h_pavig_t3_None + 
+                    h_veg_preg_Ter, 
+                    data = exposome_phenotype_covariates)
+
+summary(lifestyle_model)
+
+```
+
+
+Model 3: BMI Category vs. Chemicals 
+```{r}
+chemical_model <- multinom(hs_bmi_c_cat ~ hs_mbzp_madj_Log2 + hs_mecpp_madj_Log2 + 
+                    hs_mehhp_madj_Log2 + hs_mehp_madj_Log2 + hs_meohp_madj_Log2 + 
+                    hs_mep_madj_Log2 + hs_mibp_madj_Log2 + hs_mnbp_madj_Log2 + 
+                    hs_ohminp_madj_Log2 + hs_oxominp_madj_Log2, 
+                    data = exposome_phenotype_covariates)
+
+summary(chemical_model)
+```
+
+
+
+Full Model: change model based on the given information 
+
+```{r}
+full_model <- multinom(hs_bmi_c_cat ~ e3_sex_None + h_cohort + hs_child_age_None +
+                       e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter +
+                       h_fastfood_preg_Ter + h_fish_preg_Ter + h_folic_t1_None +
+                       h_fruit_preg_Ter + h_legume_preg_Ter + h_meat_preg_Ter +
+                       h_pamod_t3_None + h_pavig_t3_None + h_veg_preg_Ter +
+                       hs_mbzp_madj_Log2 + hs_mecpp_madj_Log2 + hs_mehhp_madj_Log2 +
+                       hs_mehp_madj_Log2 + hs_meohp_madj_Log2 + hs_mep_madj_Log2 +
+                       hs_mibp_madj_Log2 + hs_mnbp_madj_Log2 + hs_ohminp_madj_Log2 +
+                       hs_oxominp_madj_Log2,
+                       data = exposome_phenotype_covariates)
+
+
+summary(full_model)
+
+```
+AIC and BIC
+```{r}
+aic_values <- AIC(covariate_model, lifestyle_model, chemical_model)
+bic_values <- BIC(covariate_model, lifestyle_model, chemical_model)
+
+
+print(aic_values)
+print(bic_values)
+```
+
+Likelihood Ratio Test: 
+```{r}
+lr_test1 <- lrtest(covariate_model, lifestyle_model)
+lr_test2 <- lrtest(covariate_model, chemical_model)
+
+print(lr_test1)
+print(lr_test2)
+
+```
+
+
+Rough Plan:
+
+# 1. Coefficient Magnitude and Significance
+Multinomial Logistic Regression becuase of the outcome (BMI categories). I will look at  the direction (positive or negative effect) and magnitude of each predictor's impact on the log-odds of each BMI category relative to a reference.
+Statistical Significance: I will identify predictors with statistically significant coefficients (low p-values).
+Note: Look for interaction and confounding
+
+
+# 2. Odds Ratios or Probability Change
+Ratio: I will calculate the exponential of coefficients to understand how a one-unit change in predictors affects the odds of being in a specific BMI category compared to the reference category.
+OR/AND
+Probability Change: I will evaluate if odds ratios or probability change to see impact of predictors on BMI categories.
+
+
+# 3. Model Fit Improvement
+Compare models using AIC/BIC. 
+Model 1 BMI Cat vs AGE <--- But it is not binned
+Model 2 BMI Cat vs Sex
+Model 3  BMI Cat vs cohort 
+Full Model BMI Cat vs AGE AND sex AND cohort
+Selected Model
+
+
+# 4. Variable Selection Techniques
+Stepwise Regression: Use either forward selection, backward elimination, or stepwise selection methods.
+Regularization Techniques: Usr L1 and L2 regularization (lasso and ridge regression).
+
+
+# 5. Omics Data 
+Might use RF or SVM ( it non-linear relation)
+
+
+# 6. Evaluate and Compare Results
+
+Compare the performance of models that includes omics data, random forests, and SVMs against the baseline multinomial logistic regression models.
+
+Look at accuracy, precision, recall, or area under the ROC curve (AUC) to  decide the best predictive power for BMI categorization.
+
+
+# 7. Conclusion and Recommendations
+
 
 
