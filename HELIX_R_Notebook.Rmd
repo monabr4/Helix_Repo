@@ -1,5 +1,5 @@
 ---
-title: 'Examining the Impact of Environmental Exposures on Birthweight'
+title: "Examining the Impact of Environmental Exposures on Birthweight"
 author: "Mona Bandov"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output:
@@ -8,7 +8,10 @@ output:
     toc_float: true
     df_print: paged
     code_folding: hide
+  pdf_document:
+    toc: true
 ---
+
 
 ```{css, echo=FALSE}
 pre {
@@ -16,9 +19,10 @@ pre {
   overflow-y: auto;
 }
 ```
+
 ```{r data setup, include=FALSE, echo=FALSE}
 library(knitr)
-library(summarytools) # for summarizing variables
+library(summarytools) 
 library(tidyverse)
 library(table1)
 library(dplyr)
@@ -26,16 +30,20 @@ library(here)
 library(kableExtra)
 library(DT)
 library(corrplot)
+library(fastshap)
+library(grpreg)
+library(glmnet)
+library(caret)
+library(ggplot2)
 library(lmtest)
 library(nnet)
+dplyr::select
 
 options(knitr.table.format = "html")
 knitr::opts_chunk$set(echo = TRUE)
-# suppress warning messages for final rendering
 old.warn <- getOption("warn")
 options(warn=-1)
 
-# folder for analysis
 work.dir <- here::here()
 ```
 
@@ -47,10 +55,18 @@ load(helix_file_path)
 
 Metabol_serum.RData Download:
 ```{r}
-
 metabol_serum_file_path <- "~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/metabol_serum.RData"
 load(metabol_serum_file_path)
 ```
+Adjusting BMI Category 
+```{r}
+#Binning BMI so that predictive power increases 
+phenotype <- phenotype %>%
+  mutate(hs_bmi_c_cat = ifelse(hs_bmi_c_cat %in% c(1, 2), 0, 
+                               ifelse(hs_bmi_c_cat %in% c(3, 4), 1, hs_bmi_c_cat)))
+phenotype
+```
+
 
 
 # Abstract
@@ -77,7 +93,7 @@ Furthermore, this project looks at  whether urine metabolomics data can improve 
 
 ## Data
 
-The complexity of exposure to environmental contaminants has increased due to evolving environmental and lifestyle factors. The exposome includes all environmental (non-genetic) exposures an individual encounters from conception through old age. The HELIX (Human Early-Life Exposome) project focuses on the early-life exposome, which integrates all environmental hazards that mothers and children are exposed to and linking these exposures to health, growth, and development risks.
+The complexity of exposure to environmental contaminants has increased becuase evolving environmental and lifestyle factors. The exposome includes all environmental (non-genetic) exposures an individual encounters from conception through old age. The HELIX (Human Early-Life Exposome) project focuses on the early-life exposome, which integrates all environmental hazards that mothers and children are exposed to and linking these exposures to health, growth, and development risks.
 
 Pregnancy and early childhood are critical times when children are more vulnerable to environmental damage, which can have lifelong effects. Understanding the exposome during these periods can help prevent diseases, since early interventions can change biological foundation and promote healthy development. HELIX cna help show how different environmental exposures together affect health outcomes and risks.
 
@@ -89,10 +105,8 @@ This research focuses on a subcohort of 1301 mother-child pairs to explore quest
 
 
 ```{r image-helix, echo=FALSE, message=FALSE, fig.align='center', fig.cap='', out.width='100%', out.width='100%'}
-
 image_file_path <- "~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/HELIX.png"
 knitr::include_graphics(image_file_path)
-
 ```
 
  For more details on the study design see Vrijheid, Slama, et al. EHP 2014. see <https://www.projecthelix.eu/index.php/es/data-inventory> for more information regarding the study.
@@ -153,7 +167,6 @@ Urine metabolomics: <https://www.projecthelix.eu/files/HELIX_urine_metabol_DataS
 ```{r}
 codebook_file_path <- "~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/HELIX.RData"
 load(codebook_file_path)
-
 #  Chemicals
 filtered_codebook_chemicals <- codebook %>%
   filter(domain == "Chemicals" & 
@@ -169,7 +182,7 @@ filtered_codebook_covariates <- codebook %>%
 # Phenotype
 filtered_codebook_phenotype <- codebook %>%
   filter(domain == "Phenotype" & 
-         variable_name %in% c("hs_zbmi_who", "hs_bmi_c_cat"))
+         variable_name %in% c("hs_bmi_c_cat"))
 
 # Lifestyle
 filtered_codebook_lifestyles <- codebook %>%
@@ -246,28 +259,26 @@ summarytools::view(dfSummary(covariates[,names(covariates) %in% selectCovariates
 ```
 
 ### Data Summary Exposures: Phenotype
+
 ```{r}
-# Phenotype
-filtered_codebook_phenotype <- codebook %>%
-  filter(domain == "Phenotype" & 
-         variable_name %in% c("hs_zbmi_who", "hs_bmi_c_cat"))
-selectPhenotypes <- filtered_codebook_phenotype$variable_name
-summarytools::view(dfSummary(phenotype[,names(phenotype) %in% selectPhenotypes], 
-                             style = 'grid', 
-                             plain.ascii = FALSE, 
-                             valid.col = FALSE, 
-                             headings = FALSE), 
+#Figure this one out, it keeps changing.. should be 2 categories
+variable_name <- "hs_bmi_c_cat"
+variable_index <- which(names(phenotype) == variable_name)
+
+summarytools::view(dfSummary(phenotype[, variable_index, drop = FALSE],
+                             style = 'grid',
+                             plain.ascii = FALSE,
+                             valid.col = FALSE,
+                             headings = FALSE),
                    method = "render")
 ```
+
 
 
 ## Data Exploration 
 
 
---WORKSPACE--
-
 # Combining covariates with phenotype (Full Data)
-
 ```{r}
 # Lifestyle variables
 filtered_codebook_lifestyles <- codebook %>%
@@ -286,44 +297,45 @@ selectCovariates <- filtered_codebook_covariates$variable_name
 
 # Phenotype variables
 filtered_codebook_phenotype <- codebook %>%
-  filter(domain == "Phenotype" & variable_name %in% c("hs_zbmi_who", "hs_bmi_c_cat"))
+  filter(domain == "Phenotype" & variable_name %in% c("hs_bmi_c_cat"))
 selectPhenotypes <- filtered_codebook_phenotype$variable_name
 all_selected_variables <- c("ID", selectExposures_lifestyle, selectExposures_chemicals, selectCovariates, selectPhenotypes, "age")
 
 # Subset the data
-subset_exposome <- exposome %>% select(all_of(selectExposures_lifestyle), all_of(selectExposures_chemicals))
-subset_covariates <- covariates %>% select(all_of(selectCovariates))
-subset_phenotype <- phenotype %>% select(all_of(selectPhenotypes))
+subset_exposome <- exposome %>% dplyr::select(all_of(selectExposures_lifestyle), all_of(selectExposures_chemicals))
+subset_covariates <- covariates %>% dplyr::select(all_of(selectCovariates))
+subset_phenotype <- phenotype %>% dplyr::select(all_of(selectPhenotypes))
 
-# Finl Merge 
+# Final Merge
 exposome_phenotype_covariates <- exposome %>%
-  select(ID, all_of(selectExposures_lifestyle), all_of(selectExposures_chemicals)) %>%
-  left_join(covariates %>% select(ID, all_of(selectCovariates)), by = "ID") %>%
-  left_join(phenotype %>% select(ID, all_of(selectPhenotypes)), by = "ID")
+  dplyr::select(ID, all_of(selectExposures_lifestyle), all_of(selectExposures_chemicals)) %>%
+  left_join(covariates %>% dplyr::select(ID, all_of(selectCovariates)), by = "ID") %>%
+  left_join(phenotype %>% dplyr::select(ID, all_of(selectPhenotypes)), by = "ID")
 
+# Binning BMI
+exposome_phenotype_covariates <- exposome_phenotype_covariates %>%
+  mutate(hs_bmi_c_cat = ifelse(hs_bmi_c_cat %in% c(1, 2), 0, 
+                               ifelse(hs_bmi_c_cat %in% c(3, 4), 1, hs_bmi_c_cat)))
+
+exposome_phenotype_covariates
 ```
 
 
-Decided to not use hs_c_height_None and hs_c_weight_None since the distribution did not look normally distributed.
-Note: Choosing between z-bmi and cat-bmi?? What sohuld I do?
-I will use category instead since it was r=.02
+
 
 Table by Covariates: Sex, Cohort, Age
 
-I was considering age, but it is continous, should I bin it to make it categorical?
 ```{r}
 exposome_phenotype_covariates <- exposome_phenotype_covariates %>%
   mutate(
     e3_sex_None = factor(e3_sex_None),
     h_cohort = factor(h_cohort),
-    hs_bmi_c_cat = factor(hs_bmi_c_cat)
-  )
+    hs_bmi_c_cat = factor(hs_bmi_c_cat))
 
 # Labels
 label(exposome_phenotype_covariates$e3_sex_None) <- "Sex"
 label(exposome_phenotype_covariates$h_cohort) <- "Cohort"
 label(exposome_phenotype_covariates$hs_child_age_None) <- "Child's Age"
-label(exposome_phenotype_covariates$hs_zbmi_who) <- "BMI (Z)"
 label(exposome_phenotype_covariates$e3_alcpreg_yn_None) <- "Alcohol During Pregnancy"
 label(exposome_phenotype_covariates$h_cereal_preg_Ter) <- "Cereal Intake During Pregnancy"
 label(exposome_phenotype_covariates$h_dairy_preg_Ter) <- "Dairy Intake During Pregnancy"
@@ -359,7 +371,7 @@ render_cat <- function(x) {
 }
 
 # Make sure its 27 columns
-columns <- c("age", "hs_child_age_None", "hs_zbmi_who", "e3_alcpreg_yn_None", "h_cereal_preg_Ter",
+columns <- c("age", "hs_child_age_None", "e3_alcpreg_yn_None", "h_cereal_preg_Ter",
              "h_dairy_preg_Ter", "h_fastfood_preg_Ter", "h_fish_preg_Ter", "h_folic_t1_None",
              "h_fruit_preg_Ter", "h_legume_preg_Ter", "h_meat_preg_Ter", "h_pamod_t3_None",
              "h_pavig_t3_None", "h_veg_preg_Ter", "hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2",
@@ -367,7 +379,7 @@ columns <- c("age", "hs_child_age_None", "hs_zbmi_who", "e3_alcpreg_yn_None", "h
              "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2")
 
 # stratified by cohort
-table1(~  hs_child_age_None + hs_zbmi_who + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter +
+table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter +
          h_fastfood_preg_Ter + h_fish_preg_Ter + h_folic_t1_None + h_fruit_preg_Ter +
          h_legume_preg_Ter + h_meat_preg_Ter + h_pamod_t3_None + h_pavig_t3_None +
          h_veg_preg_Ter + hs_mbzp_madj_Log2 + hs_mecpp_madj_Log2 + hs_mehhp_madj_Log2 +
@@ -378,7 +390,7 @@ table1(~  hs_child_age_None + hs_zbmi_who + e3_alcpreg_yn_None + h_cereal_preg_T
        overall = TRUE, topclass = "Rtable1-shade")
 
 # stratified by sex
-table1(~  hs_child_age_None + hs_zbmi_who + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter +
+table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter +
          h_fastfood_preg_Ter + h_fish_preg_Ter + h_folic_t1_None + h_fruit_preg_Ter +
          h_legume_preg_Ter + h_meat_preg_Ter + h_pamod_t3_None + h_pavig_t3_None +
          h_veg_preg_Ter + hs_mbzp_madj_Log2 + hs_mecpp_madj_Log2 + hs_mehhp_madj_Log2 +
@@ -392,203 +404,241 @@ table1(~  hs_child_age_None + hs_zbmi_who + e3_alcpreg_yn_None + h_cereal_preg_T
 
 
 
-
-
-# BMI category by Age 
-```{r}
-ggplot(exposome_phenotype_covariates, aes(x = hs_bmi_c_cat, y = hs_child_age_None)) +
-  geom_boxplot() +
-  labs(title = "Box Plot of Child's Age vs BMI Category",
-       x = "BMI Category",
-       y = "Child's Age (Years)") +
-  theme_minimal()
-```
-
-
-
-
-# BMI Cat versus Cohort
-```{r}
-cohort_data_percentage <- exposome_phenotype_covariates %>%
-  group_by(h_cohort, hs_bmi_c_cat) %>%
-  summarise(count = n()) %>%
-  group_by(h_cohort) %>%
-  mutate(percentage = count / sum(count) * 100)
-
-ggplot(cohort_data_percentage, aes(x = h_cohort, y = percentage, fill = hs_bmi_c_cat)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "Bar Plot of BMI Category by Cohort (Percentages)",
-       x = "Cohort",
-       y = "Percentage",
-       fill = "BMI Category") +
-  theme_minimal()
-```
-
-
-# BMI Cat versus Sex 
-```{r}
-sex_data_percentage <- exposome_phenotype_covariates %>%
-  group_by(e3_sex_None, hs_bmi_c_cat) %>%
-  summarise(count = n()) %>%
-  group_by(e3_sex_None) %>%
-  mutate(percentage = count / sum(count) * 100)
-
-ggplot(sex_data_percentage, aes(x = e3_sex_None, y = percentage, fill = hs_bmi_c_cat)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "Bar Plot of BMI Category by Sex (Percentages)",
-       x = "Sex",
-       y = "Percentage",
-       fill = "BMI Category") +
-  theme_minimal()
-```
-
-
+Should I do any additional tihngs with th outcome variable?
 
 ```{r}
 numeric_vars <- exposome_phenotype_covariates %>%
-  select(where(is.numeric))
+  dplyr::select(where(is.numeric))
 
 cor_matrix <- cor(numeric_vars, use = "complete.obs")
 corrplot(cor_matrix, method = "color", type = "upper", tl.col = "black", tl.srt = 45)
+
+find_highly_correlated <- function(cor_matrix, threshold = 0.8) {
+  cor_matrix[lower.tri(cor_matrix, diag = TRUE)] <- NA  
+  cor_matrix <- as.data.frame(as.table(cor_matrix)) 
+  cor_matrix <- na.omit(cor_matrix)  # Remove NA values
+  cor_matrix <- cor_matrix[order(-abs(cor_matrix$Freq)), ]  
+  cor_matrix <- cor_matrix %>% filter(abs(Freq) > threshold)  
+  return(cor_matrix)
+}
+#  threshold of 0.60
+highly_correlated_pairs <- find_highly_correlated(cor_matrix, threshold = 0.60)
+highly_correlated_pairs
 ```
 
 
-## Model Building 
+
+#Correlated Variables on the outcome
+```{r}
+# Top 1 
+ggplot(exposome_phenotype_covariates, aes(x = hs_bmi_c_cat, y = hs_mehhp_madj_Log2)) +
+  geom_boxplot(outlier.shape = NA) + 
+  labs(title = "Boxplot and Jitter Plot of hs_mehhp_madj_Log2 by BMI Category",
+       x = "BMI Category",
+       y = "hs_mehhp_madj_Log2") +
+  theme_minimal()
+
+
+#Top 2 
+ggplot(exposome_phenotype_covariates, aes(x = hs_bmi_c_cat, y = hs_mecpp_madj_Log2)) +
+  geom_boxplot(outlier.shape = NA) + 
+  labs(title = "Boxplot and Jitter Plot of hs_mecpp_madj_Log2 by BMI Category",
+       x = "BMI Category",
+       y = "hs_mecpp_madj_Log2") +
+  theme_minimal()
+```
 
 
 
 ```{r}
-exposome_phenotype_covariates$hs_bmi_c_cat <- as.factor(exposome_phenotype_covariates$hs_bmi_c_cat)
-exposome_phenotype_covariates$e3_sex_None <- as.factor(exposome_phenotype_covariates$e3_sex_None)
-exposome_phenotype_covariates$h_cohort <- as.factor(exposome_phenotype_covariates$h_cohort)
+
+variables <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter",
+               "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", "h_legume_preg_Ter",
+               "h_meat_preg_Ter", "h_pamod_t3_None", "h_pavig_t3_None", "h_veg_preg_Ter",
+               "hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", "hs_mehp_madj_Log2",
+               "hs_meohp_madj_Log2", "hs_mep_madj_Log2", "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2",
+               "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2", "e3_sex_None", "h_cohort",
+               "hs_child_age_None")
+
+plot_against_bmi_cat <- function(variable) {
+  if (is.numeric(exposome_phenotype_covariates[[variable]])) {
+    ggplot(exposome_phenotype_covariates, aes_string(x = "hs_bmi_c_cat", y = variable)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width = 0.2, height = 0, alpha = 0.5, color = "blue") +
+      labs(title = paste("Boxplot and Jitter Plot of", variable, "by hs_bmi_c_cat"),
+           x = "BMI Category",
+           y = variable) +
+      theme_minimal()
+  } else {
+    ggplot(exposome_phenotype_covariates, aes_string(x = "hs_bmi_c_cat", fill = variable)) +
+      geom_bar(position = "dodge") +
+      labs(title = paste("Bar Plot of", variable, "by hs_bmi_c_cat"),
+           x = "BMI Category",
+           y = "Count") +
+      theme_minimal()
+  }
+}
+
+plots <- lapply(variables, plot_against_bmi_cat)
+for (plot in plots) {
+  print(plot)
+}
+
 ```
 
 
-Examine Covariates:
+
+# Data Modeling 
+
+Lasso Ridge Regression (For Log)
+BMI 
+
+0- Undereweight and Normal 
+1- Overweight and Obese
+
+
+## Model 1: Grouped Lasso Logistic Regression (With Important Variables) without Metabolomics Data 
+
+# Finding the most important variables:
+
+#Sub Models: 
+
+
+Data Prep
 ```{r}
-interaction_model <- multinom(hs_bmi_c_cat ~ e3_sex_None * h_cohort + hs_child_age_None, 
-                              data = exposome_phenotype_covariates)
-summary(interaction_model)
+
+exposome_phenotype_covariates <- exposome_phenotype_covariates %>%
+  mutate(across(c("h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter",
+                  "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
+                  "h_legume_preg_Ter", "h_meat_preg_Ter", "h_veg_preg_Ter",
+                  "hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2",
+                  "hs_mehp_madj_Log2", "hs_meohp_madj_Log2", "hs_mep_madj_Log2", 
+                  "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2",
+                  "hs_oxominp_madj_Log2", "e3_alcpreg_yn_None", "e3_sex_None", 
+                  "h_cohort", "hs_child_age_None"), as.numeric))
+
+
+X_dietary <- as.matrix(exposome_phenotype_covariates[, c("h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter", "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
+"h_legume_preg_Ter", "h_meat_preg_Ter", "h_veg_preg_Ter")])
+
+X_phthalates <- as.matrix(exposome_phenotype_covariates[, c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", "hs_mehp_madj_Log2", "hs_meohp_madj_Log2", "hs_mep_madj_Log2", "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2")])
+
+X_combined <- as.matrix(exposome_phenotype_covariates[, c("h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter", "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", "h_legume_preg_Ter", "h_meat_preg_Ter", "h_veg_preg_Ter",
+"hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", "hs_mehp_madj_Log2", "hs_meohp_madj_Log2", "hs_mep_madj_Log2", "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2", "e3_alcpreg_yn_None", "e3_sex_None", "h_cohort", "hs_child_age_None")])
+
+y <- as.numeric(as.character(exposome_phenotype_covariates$hs_bmi_c_cat))
+
 ```
 
-
-
-Model 1: BMI_Category vs. Covariates 
+Fit Grouped Lasso
 
 ```{r}
+# Fit Grouped Lasso models
+model_dietary <- grpreg(X_dietary, y, group = rep(1:9, each = 1), family = "binomial")
+model_phthalates <- grpreg(X_phthalates, y, group = rep(1:10, each = 1), family = "binomial")
+model_combined <- grpreg(X_combined, y, group = c(rep(1:9, each = 1), rep(10:19, each = 1), rep(20:23, each = 1)), family = "binomial")
 
-covariate_model <- multinom(hs_bmi_c_cat ~ e3_sex_None + h_cohort + hs_child_age_None, 
-                            data = exposome_phenotype_covariates)
-summary(covariate_model)
 ```
 
-Model 2: BMI_Category vs. Lifestyle 
+CV to get the best Lambda 
 ```{r}
+cv_dietary <- cv.grpreg(X_dietary, y, group = rep(1:9, each = 1), family = "binomial", nfolds = 10)
+cv_phthalates <- cv.grpreg(X_phthalates, y, group = rep(1:10, each = 1), family = "binomial", nfolds = 10)
+cv_combined <- cv.grpreg(X_combined, y, group = c(rep(1:9, each = 1), rep(10:19, each = 1), rep(20:23, each = 1)), family = "binomial", nfolds = 10)
 
-lifestyle_model <- multinom(hs_bmi_c_cat ~ e3_alcpreg_yn_None + h_cereal_preg_Ter + 
-                    h_dairy_preg_Ter + h_fastfood_preg_Ter + h_fish_preg_Ter + 
-                    h_folic_t1_None + h_fruit_preg_Ter + h_legume_preg_Ter + 
-                    h_meat_preg_Ter + h_pamod_t3_None + h_pavig_t3_None + 
-                    h_veg_preg_Ter, 
-                    data = exposome_phenotype_covariates)
+best_lambda_dietary <- cv_dietary$lambda.min
+best_lambda_phthalates <- cv_phthalates$lambda.min
+best_lambda_combined <- cv_combined$lambda.min
 
-summary(lifestyle_model)
+cat("Best lambda for dietary model:", best_lambda_dietary, "\n")
+cat("Best lambda for phthalates model:", best_lambda_phthalates, "\n")
+cat("Best lambda for combined model:", best_lambda_combined, "\n")
 
+plot(cv_dietary, main = "Cross-validation for Dietary Model")
+plot(cv_phthalates, main = "Cross-validation for Phthalates Model")
+plot(cv_combined, main = "Cross-validation for Combined Model")
 ```
 
-
-Model 3: BMI Category vs. Chemicals 
+Train Model and Calc Accuracy:
 ```{r}
-chemical_model <- multinom(hs_bmi_c_cat ~ hs_mbzp_madj_Log2 + hs_mecpp_madj_Log2 + 
-                    hs_mehhp_madj_Log2 + hs_mehp_madj_Log2 + hs_meohp_madj_Log2 + 
-                    hs_mep_madj_Log2 + hs_mibp_madj_Log2 + hs_mnbp_madj_Log2 + 
-                    hs_ohminp_madj_Log2 + hs_oxominp_madj_Log2, 
-                    data = exposome_phenotype_covariates)
+model_dietary_final <- grpreg(X_dietary, y, group = rep(1:9, each = 1), family = "binomial", lambda = best_lambda_dietary)
+model_phthalates_final <- grpreg(X_phthalates, y, group = rep(1:10, each = 1), family = "binomial", lambda = best_lambda_phthalates)
+model_combined_final <- grpreg(X_combined, y, group = c(rep(1:9, each = 1), rep(10:19, each = 1), rep(20:23, each = 1)), family = "binomial", lambda = best_lambda_combined)
 
-summary(chemical_model)
+pred_dietary <- predict(model_dietary_final, X_dietary, type = "response") > 0.5
+pred_phthalates <- predict(model_phthalates_final, X_phthalates, type = "response") > 0.5
+pred_combined <- predict(model_combined_final, X_combined, type = "response") > 0.5
+
+accuracy_dietary <- mean(pred_dietary == y)
+accuracy_phthalates <- mean(pred_phthalates == y)
+accuracy_combined <- mean(pred_combined == y)
+
+cat("Accuracy for dietary model:", accuracy_dietary, "\n")
+cat("Accuracy for phthalates model:", accuracy_phthalates, "\n")
+cat("Accuracy for combined model:", accuracy_combined, "\n")
 ```
 
-
-
-Full Model: change model based on the given information 
+Variable Importnace:
 
 ```{r}
-full_model <- multinom(hs_bmi_c_cat ~ e3_sex_None + h_cohort + hs_child_age_None +
-                       e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter +
-                       h_fastfood_preg_Ter + h_fish_preg_Ter + h_folic_t1_None +
-                       h_fruit_preg_Ter + h_legume_preg_Ter + h_meat_preg_Ter +
-                       h_pamod_t3_None + h_pavig_t3_None + h_veg_preg_Ter +
-                       hs_mbzp_madj_Log2 + hs_mecpp_madj_Log2 + hs_mehhp_madj_Log2 +
-                       hs_mehp_madj_Log2 + hs_meohp_madj_Log2 + hs_mep_madj_Log2 +
-                       hs_mibp_madj_Log2 + hs_mnbp_madj_Log2 + hs_ohminp_madj_Log2 +
-                       hs_oxominp_madj_Log2,
-                       data = exposome_phenotype_covariates)
+# Extracting non-zero coef
+extract_nonzero_coefficients <- function(model, variable_names) {
+  coefs <- coef(model)
+  nonzero_indices <- which(coefs != 0)
+  nonzero_coefs <- coefs[nonzero_indices]
+  nonzero_variable_names <- c("(Intercept)", variable_names)[nonzero_indices]
+  return(data.frame(Variable = nonzero_variable_names, Coefficient = nonzero_coefs))
+}
 
+# dietary model
+dietary_variable_names <- c("h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter", 
+                            "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
+                            "h_legume_preg_Ter", "h_meat_preg_Ter", "h_veg_preg_Ter")
 
-summary(full_model)
+#  phthalates model
+phthalates_variable_names <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", 
+                               "hs_mehp_madj_Log2", "hs_meohp_madj_Log2", "hs_mep_madj_Log2", 
+                               "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2", 
+                               "hs_oxominp_madj_Log2")
 
+# combined model
+combined_variable_names <- c("h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter", 
+                             "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
+                             "h_legume_preg_Ter", "h_meat_preg_Ter", "h_veg_preg_Ter")
 ```
-AIC and BIC
+
 ```{r}
-aic_values <- AIC(covariate_model, lifestyle_model, chemical_model)
-bic_values <- BIC(covariate_model, lifestyle_model, chemical_model)
+important_variables_dietary <- extract_nonzero_coefficients(model_dietary_final, dietary_variable_names)
+important_variables_phthalates <- extract_nonzero_coefficients(model_phthalates_final, phthalates_variable_names)
+important_variables_combined <- extract_nonzero_coefficients(model_combined_final, combined_variable_names)
 
+cat("Important variables for the dietary model:\n")
+print(important_variables_dietary)
 
-print(aic_values)
-print(bic_values)
+cat("\nImportant variables for the phthalates model:\n")
+print(important_variables_phthalates)
+
+cat("\nImportant variables for the combined model:\n")
+print(important_variables_combined)
 ```
 
-Likelihood Ratio Test: 
+## Model 2: Grouped Lasso Full Model +  Metabolomics Data 
+
+
+## Model 3: Best MOdel + Metabolomics Data 
 ```{r}
-lr_test1 <- lrtest(covariate_model, lifestyle_model)
-lr_test2 <- lrtest(covariate_model, chemical_model)
-
-print(lr_test1)
-print(lr_test2)
-
+#exposome_phenotype_covariates 
+#metabol_serum.d
+#Attaching Serium 
 ```
 
-
-Rough Plan:
-
-# 1. Coefficient Magnitude and Significance
-Multinomial Logistic Regression becuase of the outcome (BMI categories). I will look at  the direction (positive or negative effect) and magnitude of each predictor's impact on the log-odds of each BMI category relative to a reference.
-Statistical Significance: I will identify predictors with statistically significant coefficients (low p-values).
-Note: Look for interaction and confounding
+https://stat.ethz.ch/Manuscripts/buhlmann/logistic-grouplasso-final.pdf
+https://cran.r-project.org/web/packages/grplasso/grplasso.pdf
 
 
-# 2. Odds Ratios or Probability Change
-Ratio: I will calculate the exponential of coefficients to understand how a one-unit change in predictors affects the odds of being in a specific BMI category compared to the reference category.
-OR/AND
-Probability Change: I will evaluate if odds ratios or probability change to see impact of predictors on BMI categories.
 
 
-# 3. Model Fit Improvement
-Compare models using AIC/BIC. 
-Model 1 BMI Cat vs AGE <--- But it is not binned
-Model 2 BMI Cat vs Sex
-Model 3  BMI Cat vs cohort 
-Full Model BMI Cat vs AGE AND sex AND cohort
-Selected Model
 
-
-# 4. Variable Selection Techniques
-Stepwise Regression: Use either forward selection, backward elimination, or stepwise selection methods.
-Regularization Techniques: Usr L1 and L2 regularization (lasso and ridge regression).
-
-
-# 5. Omics Data 
-Might use RF or SVM ( it non-linear relation)
-
-
-# 6. Evaluate and Compare Results
-
-Compare the performance of models that includes omics data, random forests, and SVMs against the baseline multinomial logistic regression models.
-
-Look at accuracy, precision, recall, or area under the ROC curve (AUC) to  decide the best predictive power for BMI categorization.
-
-
-# 7. Conclusion and Recommendations
 
 
 
