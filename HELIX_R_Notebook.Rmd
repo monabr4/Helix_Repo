@@ -31,6 +31,7 @@ library(kableExtra)
 library(DT)
 library(corrplot)
 library(fastshap)
+library(pROC)
 library(grpreg)
 library(glmnet)
 library(caret)
@@ -66,6 +67,8 @@ phenotype <- phenotype %>%
                                ifelse(hs_bmi_c_cat %in% c(3, 4), 1, hs_bmi_c_cat)))
 phenotype
 ```
+
+
 
 
 
@@ -111,50 +114,6 @@ knitr::include_graphics(image_file_path)
 
  For more details on the study design see Vrijheid, Slama, et al. EHP 2014. see <https://www.projecthelix.eu/index.php/es/data-inventory> for more information regarding the study.
 
-<br>
-
-
-## Outcome
-
-The primary outcome of interest is birthweight.
-
-# Covariates
-
-Covariates include child age, sex, and cohort.
-
-# Exposures/Risk Factors
-
-The main exposures of interest diet, contaminats, age, sex, and cohort
-
-# Confounders/Interaction
-[INSERT LATER]
-
-
-## Model Building
-[INSERT LATER]
-
-
-## Model Validation
-[INSERT LATER]
-
-## Results
-[INSERT LATER]
-
-# #Discussion
-[INSERT LATER]
-
-# #Conclusions
-[INSERT LATER]
-
-# References
-
-1. Reference 1
-2. Reference 2
-3. Reference 3
-[INSERT LATER]
-
-# Appendices
-[INSERT LATER]
 
 
 ### Urine Metabolomics:
@@ -275,6 +234,10 @@ summarytools::view(dfSummary(phenotype[, variable_index, drop = FALSE],
 
 
 
+
+
+
+
 ## Data Exploration 
 
 
@@ -317,8 +280,69 @@ exposome_phenotype_covariates <- exposome_phenotype_covariates %>%
   mutate(hs_bmi_c_cat = ifelse(hs_bmi_c_cat %in% c(1, 2), 0, 
                                ifelse(hs_bmi_c_cat %in% c(3, 4), 1, hs_bmi_c_cat)))
 
-exposome_phenotype_covariates
+
 ```
+
+Creating Full and Important Data
+
+```{r}
+#Initial Model (Model 1)
+
+full_variables <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter",
+                    "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", "h_legume_preg_Ter",
+                    "h_meat_preg_Ter", "h_pamod_t3_None", "h_pavig_t3_None", "h_veg_preg_Ter",
+                    "hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", "hs_mehp_madj_Log2",
+                    "hs_meohp_madj_Log2", "hs_mep_madj_Log2", "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2",
+                    "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2", "e3_sex_None", "h_cohort",
+                    "hs_child_age_None", "hs_bmi_c_cat")
+
+
+# Variable extracted based on Model 1.
+
+important_vars <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", 
+                    "h_fastfood_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", "h_meat_preg_Ter", 
+                    "h_pamod_t3_None", "hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mep_madj_Log2", 
+                    "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_oxominp_madj_Log2", "h_cohort",
+                    "e3_sex_None", "hs_child_age_None", "hs_bmi_c_cat")
+
+
+full_dataset <- exposome_phenotype_covariates[full_variables]
+important_dataset <- exposome_phenotype_covariates[important_vars]
+
+
+full_dataset$ID <- seq_len(nrow(full_dataset))
+important_dataset$ID <- seq_len(nrow(important_dataset))
+
+
+head(full_dataset)
+head(important_dataset)
+
+
+```
+
+Merged Data + Meta:
+
+```{r}
+
+
+transposed_data <- t(metabol_serum.d)
+transposed_data <- as.data.frame(transposed_data)
+transposed_data$ID <- rownames(transposed_data)
+transposed_data <- transposed_data[, c(ncol(transposed_data), 1:(ncol(transposed_data)-1))]
+rownames(transposed_data) <- NULL
+head(transposed_data)
+
+
+
+full_data_with_meta <- merge(full_dataset,transposed_data , by = "ID", all = TRUE)
+head(full_data_with_meta)
+
+var_imp_data_with_meta <- merge(important_dataset, transposed_data, by = "ID", all = TRUE)
+head(var_imp_data_with_meta)
+
+```
+
+
 
 
 
@@ -330,7 +354,8 @@ exposome_phenotype_covariates <- exposome_phenotype_covariates %>%
   mutate(
     e3_sex_None = factor(e3_sex_None),
     h_cohort = factor(h_cohort),
-    hs_bmi_c_cat = factor(hs_bmi_c_cat))
+    hs_bmi_c_cat = factor(hs_bmi_c_cat)
+  )
 
 # Labels
 label(exposome_phenotype_covariates$e3_sex_None) <- "Sex"
@@ -360,25 +385,26 @@ label(exposome_phenotype_covariates$hs_ohminp_madj_Log2) <- "OH-MiNP (Log2)"
 label(exposome_phenotype_covariates$hs_oxominp_madj_Log2) <- "OXO-MiNP (Log2)"
 label(exposome_phenotype_covariates$hs_bmi_c_cat) <- "BMI Category"
 
-# continuous variables
+# Continuous variables
 render_cont <- function(x) {
   sprintf("%.2f (%.2f)", mean(x, na.rm = TRUE), sd(x, na.rm = TRUE))
 }
 
-# categorical variables
+# Categorical variables
 render_cat <- function(x) {
   paste0(names(table(x)), " (", table(x), ")", collapse = ", ")
 }
 
-# Make sure its 27 columns
+# Make sure it's 27 columns
 columns <- c("age", "hs_child_age_None", "e3_alcpreg_yn_None", "h_cereal_preg_Ter",
              "h_dairy_preg_Ter", "h_fastfood_preg_Ter", "h_fish_preg_Ter", "h_folic_t1_None",
              "h_fruit_preg_Ter", "h_legume_preg_Ter", "h_meat_preg_Ter", "h_pamod_t3_None",
              "h_pavig_t3_None", "h_veg_preg_Ter", "hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2",
              "hs_mehhp_madj_Log2", "hs_mehp_madj_Log2", "hs_meohp_madj_Log2", "hs_mep_madj_Log2",
-             "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2")
+             "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2", 
+             "hs_bmi_c_cat", "e3_sex_None", "h_cohort")
 
-# stratified by cohort
+# Stratified by cohort
 table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter +
          h_fastfood_preg_Ter + h_fish_preg_Ter + h_folic_t1_None + h_fruit_preg_Ter +
          h_legume_preg_Ter + h_meat_preg_Ter + h_pamod_t3_None + h_pavig_t3_None +
@@ -389,7 +415,7 @@ table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_
        render.continuous = render_cont, render.categorical = render_cat,
        overall = TRUE, topclass = "Rtable1-shade")
 
-# stratified by sex
+# Stratified by sex
 table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter +
          h_fastfood_preg_Ter + h_fish_preg_Ter + h_folic_t1_None + h_fruit_preg_Ter +
          h_legume_preg_Ter + h_meat_preg_Ter + h_pamod_t3_None + h_pavig_t3_None +
@@ -400,91 +426,34 @@ table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_
        render.continuous = render_cont, render.categorical = render_cat,
        overall = TRUE, topclass = "Rtable1-shade")
 
+
 ```
 
 
 
-Should I do any additional tihngs with th outcome variable?
-
 ```{r}
+
+
 numeric_vars <- exposome_phenotype_covariates %>%
   dplyr::select(where(is.numeric))
 
 cor_matrix <- cor(numeric_vars, use = "complete.obs")
-corrplot(cor_matrix, method = "color", type = "upper", tl.col = "black", tl.srt = 45)
+corrplot(cor_matrix, method = "color", type = "upper", tl.col = "black", tl.srt = 60, tl.cex = 0.8)
 
 find_highly_correlated <- function(cor_matrix, threshold = 0.8) {
   cor_matrix[lower.tri(cor_matrix, diag = TRUE)] <- NA  
   cor_matrix <- as.data.frame(as.table(cor_matrix)) 
-  cor_matrix <- na.omit(cor_matrix)  # Remove NA values
+  cor_matrix <- na.omit(cor_matrix)  
   cor_matrix <- cor_matrix[order(-abs(cor_matrix$Freq)), ]  
   cor_matrix <- cor_matrix %>% filter(abs(Freq) > threshold)  
   return(cor_matrix)
 }
-#  threshold of 0.60
+
 highly_correlated_pairs <- find_highly_correlated(cor_matrix, threshold = 0.60)
 highly_correlated_pairs
 ```
+Justification for Grouped Lasso Logistic --> Becuase there are correlated varaibles 
 
-
-
-#Correlated Variables on the outcome
-```{r}
-# Top 1 
-ggplot(exposome_phenotype_covariates, aes(x = hs_bmi_c_cat, y = hs_mehhp_madj_Log2)) +
-  geom_boxplot(outlier.shape = NA) + 
-  labs(title = "Boxplot and Jitter Plot of hs_mehhp_madj_Log2 by BMI Category",
-       x = "BMI Category",
-       y = "hs_mehhp_madj_Log2") +
-  theme_minimal()
-
-
-#Top 2 
-ggplot(exposome_phenotype_covariates, aes(x = hs_bmi_c_cat, y = hs_mecpp_madj_Log2)) +
-  geom_boxplot(outlier.shape = NA) + 
-  labs(title = "Boxplot and Jitter Plot of hs_mecpp_madj_Log2 by BMI Category",
-       x = "BMI Category",
-       y = "hs_mecpp_madj_Log2") +
-  theme_minimal()
-```
-
-
-
-```{r}
-
-variables <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter",
-               "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", "h_legume_preg_Ter",
-               "h_meat_preg_Ter", "h_pamod_t3_None", "h_pavig_t3_None", "h_veg_preg_Ter",
-               "hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", "hs_mehp_madj_Log2",
-               "hs_meohp_madj_Log2", "hs_mep_madj_Log2", "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2",
-               "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2", "e3_sex_None", "h_cohort",
-               "hs_child_age_None")
-
-plot_against_bmi_cat <- function(variable) {
-  if (is.numeric(exposome_phenotype_covariates[[variable]])) {
-    ggplot(exposome_phenotype_covariates, aes_string(x = "hs_bmi_c_cat", y = variable)) +
-      geom_boxplot(outlier.shape = NA) +
-      geom_jitter(width = 0.2, height = 0, alpha = 0.5, color = "blue") +
-      labs(title = paste("Boxplot and Jitter Plot of", variable, "by hs_bmi_c_cat"),
-           x = "BMI Category",
-           y = variable) +
-      theme_minimal()
-  } else {
-    ggplot(exposome_phenotype_covariates, aes_string(x = "hs_bmi_c_cat", fill = variable)) +
-      geom_bar(position = "dodge") +
-      labs(title = paste("Bar Plot of", variable, "by hs_bmi_c_cat"),
-           x = "BMI Category",
-           y = "Count") +
-      theme_minimal()
-  }
-}
-
-plots <- lapply(variables, plot_against_bmi_cat)
-for (plot in plots) {
-  print(plot)
-}
-
-```
 
 
 
@@ -495,93 +464,70 @@ BMI
 
 0- Undereweight and Normal 
 1- Overweight and Obese
+Model 1: Full Model 
+Model 2: Var Importance Model 
+Model 3: Var Importance Model + Metabolomic Data
 
 
-## Model 1: Grouped Lasso Logistic Regression (With Important Variables) without Metabolomics Data 
-
-# Finding the most important variables:
-
-#Sub Models: 
-
+## Model 2: Grouped Lasso Logistic Regression (With Important Variables) without Metabolomics Data 
 
 Data Prep
 ```{r}
+# These are the 27 columns under considerations (not inclusinf bmi_cat)
+variables <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter",
+               "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", "h_legume_preg_Ter",
+               "h_meat_preg_Ter", "h_pamod_t3_None", "h_pavig_t3_None", "h_veg_preg_Ter",
+               "hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", "hs_mehp_madj_Log2",
+               "hs_meohp_madj_Log2", "hs_mep_madj_Log2", "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2",
+               "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2")
 
+# DID NOT INCLUDE "e3_sex_None", "h_cohort",
+               "hs_child_age_None"
+
+#Need to convert to numberic 
 exposome_phenotype_covariates <- exposome_phenotype_covariates %>%
-  mutate(across(c("h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter",
-                  "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
-                  "h_legume_preg_Ter", "h_meat_preg_Ter", "h_veg_preg_Ter",
-                  "hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2",
-                  "hs_mehp_madj_Log2", "hs_meohp_madj_Log2", "hs_mep_madj_Log2", 
-                  "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2",
-                  "hs_oxominp_madj_Log2", "e3_alcpreg_yn_None", "e3_sex_None", 
-                  "h_cohort", "hs_child_age_None"), as.numeric))
+  mutate(across(all_of(variables), as.numeric))
+
+# One-hot encoding for categorical variables
+dmy <- dummyVars(" ~ .", data = exposome_phenotype_covariates[, variables])
+exposome_phenotype_covariates_transformed <- data.frame(predict(dmy, newdata = exposome_phenotype_covariates[, variables]))
+transformed_colnames <- colnames(exposome_phenotype_covariates_transformed)
+print(transformed_colnames)
+
+```
 
 
-X_dietary <- as.matrix(exposome_phenotype_covariates[, c("h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter", "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
-"h_legume_preg_Ter", "h_meat_preg_Ter", "h_veg_preg_Ter")])
+```{r}
 
-X_phthalates <- as.matrix(exposome_phenotype_covariates[, c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", "hs_mehp_madj_Log2", "hs_meohp_madj_Log2", "hs_mep_madj_Log2", "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2")])
-
-X_combined <- as.matrix(exposome_phenotype_covariates[, c("h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter", "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", "h_legume_preg_Ter", "h_meat_preg_Ter", "h_veg_preg_Ter",
-"hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", "hs_mehp_madj_Log2", "hs_meohp_madj_Log2", "hs_mep_madj_Log2", "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2", "e3_alcpreg_yn_None", "e3_sex_None", "h_cohort", "hs_child_age_None")])
-
+combined_vars <- transformed_colnames[transformed_colnames %in% variables]
+X_combined <- as.matrix(exposome_phenotype_covariates_transformed[, combined_vars])
 y <- as.numeric(as.character(exposome_phenotype_covariates$hs_bmi_c_cat))
+groups_combined <- 1:length(combined_vars)
 
-```
+# Fit tthe grouped lasso model
+model_combined <- grpreg(X_combined, y, group = groups_combined, family = "binomial")
 
-Fit Grouped Lasso
+# CV to get the best lambda
+cv_combined <- cv.grpreg(X_combined, y, group = groups_combined, family = "binomial", nfolds = 10)
 
-```{r}
-# Fit Grouped Lasso models
-model_dietary <- grpreg(X_dietary, y, group = rep(1:9, each = 1), family = "binomial")
-model_phthalates <- grpreg(X_phthalates, y, group = rep(1:10, each = 1), family = "binomial")
-model_combined <- grpreg(X_combined, y, group = c(rep(1:9, each = 1), rep(10:19, each = 1), rep(20:23, each = 1)), family = "binomial")
-
-```
-
-CV to get the best Lambda 
-```{r}
-cv_dietary <- cv.grpreg(X_dietary, y, group = rep(1:9, each = 1), family = "binomial", nfolds = 10)
-cv_phthalates <- cv.grpreg(X_phthalates, y, group = rep(1:10, each = 1), family = "binomial", nfolds = 10)
-cv_combined <- cv.grpreg(X_combined, y, group = c(rep(1:9, each = 1), rep(10:19, each = 1), rep(20:23, each = 1)), family = "binomial", nfolds = 10)
-
-best_lambda_dietary <- cv_dietary$lambda.min
-best_lambda_phthalates <- cv_phthalates$lambda.min
+# GET THE BEST LAMBDA
 best_lambda_combined <- cv_combined$lambda.min
-
-cat("Best lambda for dietary model:", best_lambda_dietary, "\n")
-cat("Best lambda for phthalates model:", best_lambda_phthalates, "\n")
 cat("Best lambda for combined model:", best_lambda_combined, "\n")
 
-plot(cv_dietary, main = "Cross-validation for Dietary Model")
-plot(cv_phthalates, main = "Cross-validation for Phthalates Model")
+# Plotting CV results 
 plot(cv_combined, main = "Cross-validation for Combined Model")
+
+# Fit Model with the best Lambda value 
+model_combined_final <- grpreg(X_combined, y, group = groups_combined, family = "binomial", lambda = best_lambda_combined)
+
+
 ```
 
-Train Model and Calc Accuracy:
-```{r}
-model_dietary_final <- grpreg(X_dietary, y, group = rep(1:9, each = 1), family = "binomial", lambda = best_lambda_dietary)
-model_phthalates_final <- grpreg(X_phthalates, y, group = rep(1:10, each = 1), family = "binomial", lambda = best_lambda_phthalates)
-model_combined_final <- grpreg(X_combined, y, group = c(rep(1:9, each = 1), rep(10:19, each = 1), rep(20:23, each = 1)), family = "binomial", lambda = best_lambda_combined)
 
-pred_dietary <- predict(model_dietary_final, X_dietary, type = "response") > 0.5
-pred_phthalates <- predict(model_phthalates_final, X_phthalates, type = "response") > 0.5
-pred_combined <- predict(model_combined_final, X_combined, type = "response") > 0.5
-
-accuracy_dietary <- mean(pred_dietary == y)
-accuracy_phthalates <- mean(pred_phthalates == y)
-accuracy_combined <- mean(pred_combined == y)
-
-cat("Accuracy for dietary model:", accuracy_dietary, "\n")
-cat("Accuracy for phthalates model:", accuracy_phthalates, "\n")
-cat("Accuracy for combined model:", accuracy_combined, "\n")
-```
-
-Variable Importnace:
 
 ```{r}
-# Extracting non-zero coef
+
+# List the non-zero coefficients
 extract_nonzero_coefficients <- function(model, variable_names) {
   coefs <- coef(model)
   nonzero_indices <- which(coefs != 0)
@@ -590,55 +536,295 @@ extract_nonzero_coefficients <- function(model, variable_names) {
   return(data.frame(Variable = nonzero_variable_names, Coefficient = nonzero_coefs))
 }
 
-# dietary model
-dietary_variable_names <- c("h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter", 
-                            "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
-                            "h_legume_preg_Ter", "h_meat_preg_Ter", "h_veg_preg_Ter")
-
-#  phthalates model
-phthalates_variable_names <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", 
-                               "hs_mehp_madj_Log2", "hs_meohp_madj_Log2", "hs_mep_madj_Log2", 
-                               "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2", 
-                               "hs_oxominp_madj_Log2")
-
-# combined model
-combined_variable_names <- c("h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter", 
-                             "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
-                             "h_legume_preg_Ter", "h_meat_preg_Ter", "h_veg_preg_Ter")
-```
-
-```{r}
-important_variables_dietary <- extract_nonzero_coefficients(model_dietary_final, dietary_variable_names)
-important_variables_phthalates <- extract_nonzero_coefficients(model_phthalates_final, phthalates_variable_names)
-important_variables_combined <- extract_nonzero_coefficients(model_combined_final, combined_variable_names)
-
-cat("Important variables for the dietary model:\n")
-print(important_variables_dietary)
-
-cat("\nImportant variables for the phthalates model:\n")
-print(important_variables_phthalates)
-
+important_variables_combined <- extract_nonzero_coefficients(model_combined_final, colnames(X_combined))
 cat("\nImportant variables for the combined model:\n")
 print(important_variables_combined)
+
+
+important_variables_combined$Variable
 ```
 
-## Model 2: Grouped Lasso Full Model +  Metabolomics Data 
 
 
-## Model 3: Best MOdel + Metabolomics Data 
+
+# Model 1: Full Data 
+
 ```{r}
-#exposome_phenotype_covariates 
-#metabol_serum.d
-#Attaching Serium 
+set.seed(1)
+
+covariates_full <- c("h_cohort", "e3_sex_None", "hs_child_age_None")
+
+phthalates_full <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", 
+                     "hs_mehp_madj_Log2", "hs_meohp_madj_Log2", "hs_mep_madj_Log2", 
+                     "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2", 
+                     "hs_oxominp_madj_Log2")
+
+diet_full <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", 
+               "h_fastfood_preg_Ter", "h_fish_preg_Ter", "h_folic_t1_None", 
+               "h_fruit_preg_Ter", "h_legume_preg_Ter", "h_meat_preg_Ter", 
+               "h_pamod_t3_None", "h_pavig_t3_None", "h_veg_preg_Ter")
+
+outcome <- "hs_bmi_c_cat"
+
+predictors_full <- c(covariates_full, phthalates_full, diet_full)
+
+# Cat --> Factor 
+full_dataset <- full_dataset %>%
+  mutate(across(c(covariates_full, diet_full), as.factor))
+
+# Fact --> Num
+full_dataset <- full_dataset %>%
+  mutate(across(where(is.factor), ~ as.numeric(as.factor(.))))
+
+
+full_dataset <- full_dataset %>%
+  mutate(across(phthalates_full, as.numeric))
+
+
+X <- as.matrix(full_dataset[, predictors_full])
+Y <- full_dataset[, outcome]
+
+# Group vector
+groups_full <- c(rep(1, length(covariates_full)), 
+                 rep(2, length(phthalates_full)), 
+                 rep(3, length(diet_full)))
+
+
+train_control <- trainControl(method = "cv", number = 10, 
+                              savePredictions = TRUE, 
+                              classProbs = TRUE)
+
+
+group_lasso_train <- function(X, Y, groups, train_control) {
+  cv_folds <- createFolds(Y, k = train_control$number, list = TRUE)
+  results <- lapply(cv_folds, function(test_idx) {
+    train_idx <- setdiff(seq_len(nrow(X)), test_idx)
+    X_train <- X[train_idx, ]
+    Y_train <- Y[train_idx]
+    X_test <- X[test_idx, ]
+    Y_test <- Y[test_idx]
+    
+    fit <- cv.grpreg(X_train, Y_train, group = groups, penalty = "grLasso")
+    predictions <- predict(fit, X_test, type = "response", s = "lambda.min")
+    
+    list(predictions = predictions, actual = Y_test)
+  })
+  
+  predictions <- unlist(lapply(results, `[[`, "predictions"))
+  actual <- unlist(lapply(results, `[[`, "actual"))
+  
+  return(data.frame(predictions = predictions, actual = actual))
+}
+
+# Train the model using group lasso with CV
+cv_results <- group_lasso_train(X, Y, groups_full, train_control)
+
+# performance
+predicted_classes <- ifelse(cv_results$predictions > 0.5, 1, 0)
+confusion_matrix <- table(Predicted = predicted_classes, Actual = cv_results$actual)
+
+# confusion matrix
+print(confusion_matrix)
+
+# accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy: ", accuracy))
+
+# ROC AUC
+roc_curve <- roc(cv_results$actual, cv_results$predictions)
+print(paste("ROC AUC: ", roc_curve$auc))
+
 ```
+
+
+## Model 2: Var Importance Data 
+
+
+```{r}
+set.seed(1)
+covariates <- c("h_cohort", "e3_sex_None", "hs_child_age_None")
+
+phthalates <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mep_madj_Log2", 
+                "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_oxominp_madj_Log2")
+
+diet <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter",
+          "h_folic_t1_None", "h_fruit_preg_Ter", "h_meat_preg_Ter", "h_pamod_t3_None")
+
+outcome <- "hs_bmi_c_cat"
+
+predictors <- c(covariates, phthalates, diet)
+
+# Cat -> Fact
+important_dataset <- important_dataset %>%
+  mutate(across(c(covariates, diet), as.factor))
+
+# Fact -> Num
+important_dataset <- important_dataset %>%
+  mutate(across(where(is.factor), ~ as.numeric(as.factor(.))))
+
+important_dataset <- important_dataset %>%
+  mutate(across(phthalates, as.numeric))
+
+
+X <- as.matrix(important_dataset[, predictors])
+Y <- important_dataset[, outcome]
+
+# grouping vector
+groups <- c(rep(1, length(covariates)), 
+            rep(2, length(phthalates)), 
+            rep(3, length(diet)))
+
+# control for CV
+train_control <- trainControl(method = "cv", number = 10, 
+                              savePredictions = TRUE, 
+                              classProbs = TRUE)
+
+
+group_lasso_train <- function(X, Y, groups, train_control) {
+  cv_folds <- createFolds(Y, k = train_control$number, list = TRUE)
+  results <- lapply(cv_folds, function(test_idx) {
+    train_idx <- setdiff(seq_len(nrow(X)), test_idx)
+    X_train <- X[train_idx, ]
+    Y_train <- Y[train_idx]
+    X_test <- X[test_idx, ]
+    Y_test <- Y[test_idx]
+    
+    fit <- cv.grpreg(X_train, Y_train, group = groups, penalty = "grLasso")
+    predictions <- predict(fit, X_test, type = "response", s = "lambda.min")
+    
+    list(predictions = predictions, actual = Y_test)
+  })
+  
+  predictions <- unlist(lapply(results, `[[`, "predictions"))
+  actual <- unlist(lapply(results, `[[`, "actual"))
+  
+  return(data.frame(predictions = predictions, actual = actual))
+}
+
+# Train the model using group lasso with CV
+cv_results <- group_lasso_train(X, Y, groups, train_control)
+
+# performance
+predicted_classes <- ifelse(cv_results$predictions > 0.5, 1, 0)
+confusion_matrix <- table(Predicted = predicted_classes, Actual = cv_results$actual)
+
+# confusion matrix
+print(confusion_matrix)
+
+# accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy: ", accuracy))
+
+# ROC AUC
+roc_curve <- roc(cv_results$actual, cv_results$predictions)
+print(paste("ROC AUC: ", roc_curve$auc))
+
+```
+
+
+
+
+
+## Model 3: Var Importance Data  + Metabolomics Data 
+
+
+
+```{r}
+covariates_final <- c("h_cohort", "e3_sex_None", "hs_child_age_None")
+
+phthalates_final <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mep_madj_Log2", 
+                      "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_oxominp_madj_Log2")
+diet_final <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", 
+                "h_fastfood_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
+                "h_meat_preg_Ter", "h_pamod_t3_None")
+metabolites_final <- grep("^metab_", colnames(var_imp_data_with_meta), value = TRUE)
+
+outcome <- "hs_bmi_c_cat"
+
+predictors_final <- c(covariates_final, phthalates_final, diet_final, metabolites_final)
+```
+
+
+```{r}
+# Impute missing values with column mean!! CANNOT DEAL WITH NA
+var_imp_data_with_meta <- var_imp_data_with_meta %>%
+  mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+```
+
+```{r}
+# Cat --> Fact
+var_imp_data_with_meta <- var_imp_data_with_meta %>%
+  mutate(across(c(covariates_final, diet_final), as.factor))
+
+# Fact --> Num
+var_imp_data_with_meta <- var_imp_data_with_meta %>%
+  mutate(across(where(is.factor), ~ as.numeric(as.factor(.))))
+
+
+var_imp_data_with_meta <- var_imp_data_with_meta %>%
+  mutate(across(phthalates_final, as.numeric))
+
+
+X <- as.matrix(var_imp_data_with_meta[, predictors_final])
+Y <- var_imp_data_with_meta[, outcome]
+
+# grouping vector
+groups_final <- c(rep(1, length(covariates_final)), 
+                  rep(2, length(phthalates_final)), 
+                  rep(3, length(diet_final)), 
+                  rep(4, length(metabolites_final)))
+
+# control for CV
+train_control <- trainControl(method = "cv", number = 10, 
+                              savePredictions = TRUE, 
+                              classProbs = TRUE)
+
+group_lasso_train <- function(X, Y, groups, train_control) {
+  cv_folds <- createFolds(Y, k = train_control$number, list = TRUE)
+  all_results <- list()
+  for (fold in seq_along(cv_folds)) {
+    test_idx <- cv_folds[[fold]]
+    train_idx <- setdiff(seq_len(nrow(X)), test_idx)
+    
+    X_train <- X[train_idx, ]
+    Y_train <- Y[train_idx]
+    X_test <- X[test_idx, ]
+    Y_test <- Y[test_idx]
+    
+    fit <- cv.grpreg(X_train, Y_train, group = groups, penalty = "grLasso")
+    predictions <- predict(fit, X_test, type = "response", s = "lambda.min")
+    
+    fold_results <- data.frame(predictions = predictions, actual = Y_test)
+    all_results[[fold]] <- fold_results
+  }
+  
+  results <- do.call(rbind, all_results)
+  return(results)
+}
+
+# Train the model using group lasso with CV
+cv_results <- group_lasso_train(X, Y, groups_final, train_control)
+
+# performance
+predicted_classes <- ifelse(cv_results$predictions > 0.5, 1, 0)
+confusion_matrix <- table(Predicted = predicted_classes, Actual = cv_results$actual)
+
+# confusion matrix
+print(confusion_matrix)
+
+# accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy: ", accuracy))
+
+# ROC AUC
+roc_curve <- roc(cv_results$actual, cv_results$predictions)
+print(paste("ROC AUC: ", roc_curve$auc))
+
+```
+
+
+Random Forest on the Best Model ( Cont...)
+
 
 https://stat.ethz.ch/Manuscripts/buhlmann/logistic-grouplasso-final.pdf
 https://cran.r-project.org/web/packages/grplasso/grplasso.pdf
-
-
-
-
-
-
-
-
