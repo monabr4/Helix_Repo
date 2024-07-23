@@ -1,7 +1,7 @@
 ---
-title: "Examining the Impact of Environmental Exposures on Birthweight"
-author: "Mona Bandov"
-date: "`r format(Sys.time(), '%d %B %Y')`"
+title: "Examining the Impact of Environmental Exposures on Body Mass Index (BMI)"
+author: "Author: Mona Bandov"
+date: "Published: `r format(Sys.time(), '%d %B %Y')`"
 output:
   html_document:
     toc: true
@@ -10,8 +10,10 @@ output:
     code_folding: hide
   pdf_document:
     toc: true
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
-
 
 ```{css, echo=FALSE}
 pre {
@@ -21,23 +23,31 @@ pre {
 ```
 
 ```{r data setup, include=FALSE, echo=FALSE}
-library(knitr)
-library(summarytools) 
+
 library(tidyverse)
-library(table1)
 library(dplyr)
-library(here) 
-library(kableExtra)
-library(DT)
-library(corrplot)
-library(fastshap)
-library(pROC)
-library(grpreg)
-library(glmnet)
-library(caret)
 library(ggplot2)
-library(lmtest)
+library(DT)
+library(knitr)
+library(kableExtra)
+library(glmnet)
+library(grpreg)
+library(caret)
+library(pROC)
+library(randomForest)
+library(rpart)
 library(nnet)
+library(caret)
+library(summarytools)
+library(table1)
+library(here)
+library(corrplot)
+library(rpart.plot)
+library(fastshap)
+library(grpreg)
+library(car)
+library(lmtest)
+
 dplyr::select
 
 options(knitr.table.format = "html")
@@ -48,63 +58,194 @@ options(warn=-1)
 work.dir <- here::here()
 ```
 
-HELIX.RData Download: 
 ```{r}
+#HELIX.RData Download: 
 helix_file_path <- "~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/HELIX.RData"
 load(helix_file_path)
 ```
 
-Metabol_serum.RData Download:
 ```{r}
+# Metabol_serum.RData Download:
 metabol_serum_file_path <- "~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/metabol_serum.RData"
 load(metabol_serum_file_path)
 ```
-Adjusting BMI Category 
+
 ```{r}
+#Adjusting BMI Category 
 #Binning BMI so that predictive power increases 
 phenotype <- phenotype %>%
   mutate(hs_bmi_c_cat = ifelse(hs_bmi_c_cat %in% c(1, 2), 0, 
                                ifelse(hs_bmi_c_cat %in% c(3, 4), 1, hs_bmi_c_cat)))
-phenotype
 ```
-
-
-
-
 
 # Abstract
 
-This study examines the impact of environmental exposures during pregnancy on birthweight. Using data from the HELIX study, we apply ........ [INSERT MORE STUFF HERE]
+This study examines the impact of prenatal environmental exposures on
+childhood body mass index (BMI) in children aged 6 to 11 years. Using
+data from the HELIX study, we investigate the influence of prenatal
+dietary intake and phthalate exposure concentrations on BMI, while
+controlling for child age at examinations and gestational age at birth.
+Lasso and Group Lasso regression models to assess the
+predictive power of these prenatal exposures. 
 
-Hypothesis: 
+[PUT THE FINAL RESULTS HERE]
 
-How do prenatal dietary intake and concentrations of prenatal phthalate exposures influence body mass index (BMI)  for children 6-11 years old  while controlling for  child age at examinations and gestational age at birth, and can urine metabolomics data improve predictive models of BMI using statistical and machine learning tools? [ need to edit]
+# Hypothesis
+
+How do prenatal dietary intake and concentrations of prenatal phthalate
+exposures influence body mass index (BMI) for children aged 6 to 11
+years, while controlling for child age, sex, and cohort? Additionally,
+can urine metabolomics data improve predictive models of BMI using
+statistical and machine learning tools?
 
 # Introduction
 
-The relationship between prenatal environmental exposures and childhood health outcomes is important, especially in understanding how prenatal factors influence long-term health in children. This data project aims to explore the influence of prenatal dietary intake and phthalate exposure concentrations on body mass index (BMI) in children aged 6 to 11 years. Phthalates, commonly found in plastics and personal care products, are known endocrine disruptors that may impact fetal development and childhood growth patterns ([Valvi et al., 2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8157593/)). Previous studies have shown that prenatal exposure to phthalates is associated with an increased risk of obesity and metabolic disorders in children ([Luo et al., 2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7559247/)). By controlling for key variables such as child age at examinations and gestational age at birth, this project seeks to examine the direct and interactive effects of these prenatal exposures on BMI.
+The relationship between prenatal environmental exposures and childhood
+health outcomes is important, especially in understanding how prenatal
+factors influence long-term health in children. This data project aims
+to explore the influence of prenatal dietary intake and phthalate
+exposure concentrations on body mass index (BMI) in children aged 6 to
+11 years. Phthalates, commonly found in plastics and personal care
+products, are known endocrine disruptors that may impact fetal
+development and childhood growth patterns ([Valvi et al.,
+2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8157593/)). Previous
+studies have shown that prenatal exposure to phthalates is associated
+with an increased risk of obesity and metabolic disorders in children
+([Luo et al.,
+2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7559247/)). By
+controlling for key variables such as child age at examinations and
+gestational age at birth, this project seeks to examine the direct and
+interactive effects of these prenatal exposures on BMI.
 
-Recent studies emphasize the important role of maternal diet during pregnancy, demonstrating that balanced maternal nutrition can mitigate the adverse effects of environmental exposures like phthalates on child BMI, suggesting that improved dietary practices during pregnancy can lead to better health outcomes for children ([NCBI, 2024](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9824240/)).
+Recent studies emphasize the important role of maternal diet during
+pregnancy, demonstrating that balanced maternal nutrition can mitigate
+the adverse effects of environmental exposures like phthalates on child
+BMI, suggesting that improved dietary practices during pregnancy can
+lead to better health outcomes for children ([NCBI,
+2024](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9824240/)).
 
-Phthalate exposure has been linked to various health issues, including obesity, type II diabetes, thyroid dysfunction, higher blood pressure, precocious puberty, and reproductive effects. It also impacts the respiratory system (allergy, asthma) and nervous system (delayed neurodevelopment, social impairment) ([Serrano et al., 2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7483495/)).
+Phthalate exposure has been linked to various health issues, including
+obesity, type II diabetes, thyroid dysfunction, higher blood pressure,
+precocious puberty, and reproductive effects. It also impacts the
+respiratory system (allergy, asthma) and nervous system (delayed
+neurodevelopment, social impairment) ([Serrano et al.,
+2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7483495/)).
 
-Furthermore, this project looks at  whether urine metabolomics data can improve predictive models of BMI using statistical and machine learning approaches. Integrating metabolomics data helps to understand the biochemical pathways linking prenatal exposures (diet and phthalates) to childhood health outcomes. This project aims to provide insights into the prevention and management of childhood obesity and related health conditions.
+Furthermore, this project looks at whether urine metabolomics data can
+improve predictive models of BMI using statistical and machine learning
+approaches. Integrating metabolomics data helps to understand the
+biochemical pathways linking prenatal exposures (diet and phthalates) to
+childhood health outcomes. This project aims to provide insights into
+the prevention and management of childhood obesity and related health
+conditions.
 
 # Methods
 
-[INSERT MORE STUFF HERE LATER]
+## Data Preparation
 
-## Data
+### Imputation
+Missing values were imputed with the mean for relevant columns.
 
-The complexity of exposure to environmental contaminants has increased becuase evolving environmental and lifestyle factors. The exposome includes all environmental (non-genetic) exposures an individual encounters from conception through old age. The HELIX (Human Early-Life Exposome) project focuses on the early-life exposome, which integrates all environmental hazards that mothers and children are exposed to and linking these exposures to health, growth, and development risks.
+### Data Splitting
+The dataset was split into training (80%) and testing (20%) sets using stratified sampling to ensure a balanced representation of the outcome variable.
 
-Pregnancy and early childhood are critical times when children are more vulnerable to environmental damage, which can have lifelong effects. Understanding the exposome during these periods can help prevent diseases, since early interventions can change biological foundation and promote healthy development. HELIX cna help show how different environmental exposures together affect health outcomes and risks.
+## Variables 
 
-There are six existing European birth cohort studies: Born in Bradford (BiB), Etude des Déterminants pré et postnatals du développement et de la santé de l'Enfant (EDEN), INfancia y Medio Ambiente (INMA), Kaunas Cohort (KANC), Norwegian Mother, Father and Child Cohort Study (MoBa), and Rhea Mother-Child Cohort Study. These cohorts have collected extensive data from national and EU-funded projects. HELIX supplements this data with advanced tools and methods to measure and integrate the chemical, physical, and molecular environment, linking these measurements to child health outcomes.
+### Outcome Variable
+- Body Mass Index (BMI) categorized (`hs_bmi_c_cat`)
 
-Smartphones are utilized to measure air pollution, UV radiation, physical activity, and noise exposure. Advanced laboratory techniques identify biological markers of various chemical exposures, such as contaminants in food, consumer products, and water. HELIX has gathered extensive exposome data from mothers and children, making it the largest study on this topic. The study design is multilevel: the first level includes 31,472 mother-child pairs recruited during pregnancy across the six cohorts; the second level consists of a subcohort of 1301 mother-child pairs with detailed measurements of biomarkers, omics signatures, and health outcomes at ages 6-11 years; and the third level involves repeat-sampling panel studies with about 150 children and 150 pregnant women to collect personal exposure data.
+### Covariates
+- `h_cohort`
+- `e3_sex_None`
+- `hs_child_age_None`
 
-This research focuses on a subcohort of 1301 mother-child pairs to explore questions related to environmental exposures, omic data, and their impact on health outcomes. Specifically, the project will examine urine metabolomics data with Body Mass Index (BMI) as the primary outcome of interest. The goal of this project is to provide a deeper understanding of how early-life environmental exposures influence BMI, potentially providing more information on how to apply early intervention and disease prevention.
+### Diet Variables
+- `e3_alcpreg_yn_None`
+- `h_cereal_preg_Ter`
+- `h_dairy_preg_Ter`
+- `h_fastfood_preg_Ter`
+- `h_folic_t1_None`
+- `h_fruit_preg_Ter`
+- `h_meat_preg_Ter`
+- `h_pamod_t3_None`
+
+### Chemical Variables
+- `hs_mbzp_madj_Log2`
+- `hs_mecpp_madj_Log2`
+- `hs_mep_madj_Log2`
+- `hs_mibp_madj_Log2`
+- `hs_mnbp_madj_Log2`
+- `hs_oxominp_madj_Log2`
+
+### Meta Variables
+Additional biochemical markers from urine metabolomics data. Click link below for more information:
+<https://www.projecthelix.eu/files/HELIX_urine_metabol_DataSummary.pdf>\
+
+## Models
+
+### Model 1: Lasso, Ridge, and Elastic Net on Full Model (excluding urine metabolomics)
+
+Evaluates three regularization regression techniques on the full dataset to identify the best model.
+
+### Model A: Outcome ~ Covariates
+Uses the most optimized model from Model 1 on covariates only. (Lasso Regresion)
+
+### Model B: Outcome ~ Covariates + Diet
+Uses the most optimized model from Model 1 on covariates and diet variables. (Lasso Regression)
+
+### Model C: Outcome ~ Covariates + Diet + Chemicals
+Examines the effect of covariates, diet, and chemical exposures on BMI. (Group Lasso Regression)
+
+### Model D: Outcome ~ Covariates + Diet + Chemicals + Meta
+Expands Model C by including meta variables from urine metabolomics data.(Group Lasso Regression)
+
+### Model 2: Random Forest
+Applied to the best performing dataset with metabolomics data.
+
+## Statistical Analysis
+
+### Primary Models
+Two primary models were constructed using Lasso and Group Lasso regression techniques:
+
+- **Lasso Regression**: Used to identify the most relevant predictors by applying L1 regularization.
+- **Group Lasso Regression**: Applied to evaluate the combined effect of grouped variables (covariates, diet, chemicals, and meta variables).
+
+### Secondary Model
+- **Random Forest**: Used to determine the best machine learning algorithm for the best performing dataset.
+
+### Model Evaluation
+
+### Performance Metrics
+- **Area Under the Curve (AUC)** of the ROC curve was used to assess the model's predictive accuracy.
+- **ROC Curve Comparison**: ROC curves were plotted for both models to compare their performance visually.
+
+# Data
+
+The complexity of exposure to environmental contaminants has increased
+becuase evolving environmental and lifestyle factors. The exposome
+includes all environmental (non-genetic) exposures an individual
+encounters from conception through old age. The HELIX (Human Early-Life
+Exposome) project focuses on the early-life exposome, which integrates
+all environmental hazards that mothers and children are exposed to and
+linking these exposures to health, growth, and development risks.
+
+Pregnancy and early childhood are critical times when children are more
+vulnerable to environmental damage, which can have lifelong effects.
+Understanding the exposome during these periods can help prevent
+diseases, since early interventions can change biological foundation and
+promote healthy development. HELIX cna help show how different
+environmental exposures together affect health outcomes and risks.
+
+There are six existing European birth cohort studies: Born in Bradford
+(BiB), Etude des Déterminants pré et postnatals du développement et de
+la santé de l'Enfant (EDEN), INfancia y Medio Ambiente (INMA), Kaunas
+Cohort (KANC), Norwegian Mother, Father and Child Cohort Study (MoBa),
+and Rhea Mother-Child Cohort Study. These cohorts have collected
+extensive data from national and EU-funded projects. HELIX supplements
+this data with advanced tools and methods to measure and integrate the
+chemical, physical, and molecular environment, linking these
+measurements to child health outcomes.
+
 
 
 ```{r image-helix, echo=FALSE, message=FALSE, fig.align='center', fig.cap='', out.width='100%', out.width='100%'}
@@ -112,16 +253,36 @@ image_file_path <- "~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-
 knitr::include_graphics(image_file_path)
 ```
 
- For more details on the study design see Vrijheid, Slama, et al. EHP 2014. see <https://www.projecthelix.eu/index.php/es/data-inventory> for more information regarding the study.
+
+Smartphones are utilized to measure air pollution, UV radiation,
+physical activity, and noise exposure. Advanced laboratory techniques
+identify biological markers of various chemical exposures, such as
+contaminants in food, consumer products, and water. HELIX has gathered
+extensive exposome data from mothers and children, making it the largest
+study on this topic. The study design is multilevel: the first level
+includes 31,472 mother-child pairs recruited during pregnancy across the
+six cohorts; the second level consists of a subcohort of 1301
+mother-child pairs with detailed measurements of biomarkers, omics
+signatures, and health outcomes at ages 6-11 years; and the third level
+involves repeat-sampling panel studies with about 150 children and 150
+pregnant women to collect personal exposure data.
+
+This research focuses on a subcohort of 1301 mother-child pairs to
+explore questions related to environmental exposures, omic data, and
+their impact on health outcomes. Specifically, the project will examine
+urine metabolomics data with Body Mass Index (BMI) as the primary
+outcome of interest. The goal of this project is to provide a deeper
+understanding of how early-life environmental exposures influence BMI,
+potentially providing more information on how to apply early
+intervention and disease prevention.
+
+For more details on the study design see Vrijheid, Slama, et al. EHP
+2014. see <https://www.projecthelix.eu/index.php/es/data-inventory> for
+more information regarding the study.
 
 
 
-### Urine Metabolomics:
-
-Urine metabolomics: <https://www.projecthelix.eu/files/HELIX_urine_metabol_DataSummary.pdf>\
-
-## Data Description and Codebook
-
+# Data Description and Codebook
 
 ```{r}
 codebook_file_path <- "~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/HELIX.RData"
@@ -156,18 +317,16 @@ combined_codebook <- bind_rows(
 )
 
 # Final Display
-datatable(combined_codebook, 
-          options = list(pageLength = 10, 
-                         autoWidth = TRUE, 
-                         dom = 'Bfrtip', 
-                         buttons = c('copy', 'csv', 'excel', 'pdf', 'print'), 
-                         searchHighlight = TRUE),
-          caption = "Filtered Codebook for HELIX Data")
+#datatable(combined_codebook, 
+ #         options = list(pageLength = 10, 
+  #                       autoWidth = TRUE, 
+   #                      dom = 'Bfrtip', 
+    #                     buttons = c('copy', 'csv', 'excel', 'pdf', 'print'), 
+     #                    searchHighlight = TRUE),
+      #    caption = "Filtered Codebook for HELIX Data")
 ```
 
-
-
-### Data Summary Exposures: Lifestyles
+## Data Summary Exposures: Lifestyles (Diet)
 
 ```{r Lifestyles summary, attr.output='style="max-height: 100px;"',}
 #Lifestyle 
@@ -182,8 +341,7 @@ summarytools::view(dfSummary(exposome[,names(exposome) %in% selectExposures],
                    method = "render")
 ```
 
-
-### Data Summary Exposures: Chemicals
+## Data Summary Exposures: Chemicals (Phtlates)
 
 ```{r Chemicals summary, attr.output='style="max-height: 100px;"',}
 #Chemical
@@ -201,8 +359,7 @@ summarytools::view(dfSummary(exposome[,names(exposome) %in% selectExposures],
                    method = "render")
 ```
 
-
-### Data Summary Exposures: Covariate 
+## Data Summary Exposures: Covariate 
 
 ```{r}
 # Covariates 
@@ -217,32 +374,10 @@ summarytools::view(dfSummary(covariates[,names(covariates) %in% selectCovariates
                    method = "render")
 ```
 
-### Data Summary Exposures: Phenotype
+# Data Exploration
 
 ```{r}
-#Figure this one out, it keeps changing.. should be 2 categories
-variable_name <- "hs_bmi_c_cat"
-variable_index <- which(names(phenotype) == variable_name)
-
-summarytools::view(dfSummary(phenotype[, variable_index, drop = FALSE],
-                             style = 'grid',
-                             plain.ascii = FALSE,
-                             valid.col = FALSE,
-                             headings = FALSE),
-                   method = "render")
-```
-
-
-
-
-
-
-
-## Data Exploration 
-
-
 # Combining covariates with phenotype (Full Data)
-```{r}
 # Lifestyle variables
 filtered_codebook_lifestyles <- codebook %>%
   filter(domain == "Lifestyles" & period == "Pregnancy")
@@ -283,9 +418,9 @@ exposome_phenotype_covariates <- exposome_phenotype_covariates %>%
 
 ```
 
-Creating Full and Important Data
 
 ```{r}
+#Creating Full and Important Data
 #Initial Model (Model 1)
 
 full_variables <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter",
@@ -312,42 +447,25 @@ important_dataset <- exposome_phenotype_covariates[important_vars]
 
 full_dataset$ID <- seq_len(nrow(full_dataset))
 important_dataset$ID <- seq_len(nrow(important_dataset))
-
-
-head(full_dataset)
-head(important_dataset)
-
-
 ```
-
-Merged Data + Meta:
 
 ```{r}
 
-
+#Merged Data + Meta:
 transposed_data <- t(metabol_serum.d)
 transposed_data <- as.data.frame(transposed_data)
 transposed_data$ID <- rownames(transposed_data)
 transposed_data <- transposed_data[, c(ncol(transposed_data), 1:(ncol(transposed_data)-1))]
 rownames(transposed_data) <- NULL
-head(transposed_data)
-
 
 
 full_data_with_meta <- merge(full_dataset,transposed_data , by = "ID", all = TRUE)
-head(full_data_with_meta)
-
 var_imp_data_with_meta <- merge(important_dataset, transposed_data, by = "ID", all = TRUE)
-head(var_imp_data_with_meta)
+
 
 ```
 
-
-
-
-
-
-Table by Covariates: Sex, Cohort, Age
+## Table by Cohort:
 
 ```{r}
 exposome_phenotype_covariates <- exposome_phenotype_covariates %>%
@@ -415,6 +533,12 @@ table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_
        render.continuous = render_cont, render.categorical = render_cat,
        overall = TRUE, topclass = "Rtable1-shade")
 
+
+```
+
+## Table by Sex:
+```{r}
+
 # Stratified by sex
 table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter +
          h_fastfood_preg_Ter + h_fish_preg_Ter + h_folic_t1_None + h_fruit_preg_Ter +
@@ -426,9 +550,32 @@ table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_
        render.continuous = render_cont, render.categorical = render_cat,
        overall = TRUE, topclass = "Rtable1-shade")
 
+```
+
+
+
+
+## Data Summary Exposures of Outcome: Phenotype (BMI Category)
+
+```{r}
+summary_data <- full_dataset %>%
+  count(hs_bmi_c_cat) %>%
+  mutate(percentage = n / sum(n) * 100)
+
+ggplot(data = summary_data, aes(x = as.factor(hs_bmi_c_cat), y = percentage)) +
+  geom_bar(stat = "identity", fill = c("skyblue", "salmon")) +
+  geom_text(aes(label = paste0(round(percentage, 1), "%")), 
+            vjust = -0.5, size = 4) +
+  labs(title = "Distribution of BMI Categories",
+       x = "BMI Cateogories",
+       y = "Percentage") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5))
 
 ```
 
+## Correlation Matrix
 
 
 ```{r}
@@ -452,379 +599,414 @@ find_highly_correlated <- function(cor_matrix, threshold = 0.8) {
 highly_correlated_pairs <- find_highly_correlated(cor_matrix, threshold = 0.60)
 highly_correlated_pairs
 ```
-Justification for Grouped Lasso Logistic --> Becuase there are correlated varaibles 
+
+
+The heatmap shows significant multicollinearity among several phthalate
+variables. Traditional regression models, such as lasso
+regression, struggle with such correlations, leading to unreliable
+estimates. Grouped lasso logistic regression addresses this by selecting
+correlated variables This method ensures that highly correlated
+variables are handled together, reducing overfitting and maintaining the
+integrity of variable groups.
+
+#Model Building 
+
+<https://stat.ethz.ch/Manuscripts/buhlmann/logistic-grouplasso-final.pdf>
+<https://cran.r-project.org/web/packages/grplasso/grplasso.pdf>
+
+### Model 1: Used Grouped LASSO, RIDGE, ENET Regression on HELIX Data (not including Metabolmics)
+
+* Need to force the covariates in the model
+* Need to look for Variable Importance 
 
 
 
+```{r, message=FALSE, warning= FALSE}
+#Grouped Variables
+outcome <- "hs_bmi_c_cat"
+covariates_final <- c("h_cohort", "e3_sex_None", "hs_child_age_None") #THESE VARIABLES NEED TO BE FORCED IN THE MODEL 
+phthalates_final <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mep_madj_Log2", "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_oxominp_madj_Log2")
+diet_final <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", "h_meat_preg_Ter", "h_pamod_t3_None")
 
-# Data Modeling 
+predictors_final <- c(covariates_final, phthalates_final, diet_final)
 
-Lasso Ridge Regression (For Log)
-BMI 
+# Data Prep
+x <- model.matrix(~ . - 1, data = full_dataset[, predictors_final])
+y <- as.numeric(as.character(full_dataset[[outcome]]))
 
-0- Undereweight and Normal 
-1- Overweight and Obese
-Model 1: Full Model 
-Model 2: Var Importance Model 
-Model 3: Var Importance Model + Metabolomic Data
-
-
-## Model 2: Grouped Lasso Logistic Regression (With Important Variables) without Metabolomics Data 
-
-Data Prep
-```{r}
-# These are the 27 columns under considerations (not inclusinf bmi_cat)
-variables <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter",
-               "h_fish_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", "h_legume_preg_Ter",
-               "h_meat_preg_Ter", "h_pamod_t3_None", "h_pavig_t3_None", "h_veg_preg_Ter",
-               "hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", "hs_mehp_madj_Log2",
-               "hs_meohp_madj_Log2", "hs_mep_madj_Log2", "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2",
-               "hs_ohminp_madj_Log2", "hs_oxominp_madj_Log2")
-
-# DID NOT INCLUDE "e3_sex_None", "h_cohort",
-               "hs_child_age_None"
-
-#Need to convert to numberic 
-exposome_phenotype_covariates <- exposome_phenotype_covariates %>%
-  mutate(across(all_of(variables), as.numeric))
-
-# One-hot encoding for categorical variables
-dmy <- dummyVars(" ~ .", data = exposome_phenotype_covariates[, variables])
-exposome_phenotype_covariates_transformed <- data.frame(predict(dmy, newdata = exposome_phenotype_covariates[, variables]))
-transformed_colnames <- colnames(exposome_phenotype_covariates_transformed)
-print(transformed_colnames)
-
-```
+# groups
+group_ids <- c(rep(1, length(covariates_final)), 
+               rep(2, length(phthalates_final)), 
+               rep(3, length(diet_final)))
 
 
-```{r}
+column_names <- colnames(x)
+adjusted_groups <- rep(NA, length(column_names))
 
-combined_vars <- transformed_colnames[transformed_colnames %in% variables]
-X_combined <- as.matrix(exposome_phenotype_covariates_transformed[, combined_vars])
-y <- as.numeric(as.character(exposome_phenotype_covariates$hs_bmi_c_cat))
-groups_combined <- 1:length(combined_vars)
-
-# Fit tthe grouped lasso model
-model_combined <- grpreg(X_combined, y, group = groups_combined, family = "binomial")
-
-# CV to get the best lambda
-cv_combined <- cv.grpreg(X_combined, y, group = groups_combined, family = "binomial", nfolds = 10)
-
-# GET THE BEST LAMBDA
-best_lambda_combined <- cv_combined$lambda.min
-cat("Best lambda for combined model:", best_lambda_combined, "\n")
-
-# Plotting CV results 
-plot(cv_combined, main = "Cross-validation for Combined Model")
-
-# Fit Model with the best Lambda value 
-model_combined_final <- grpreg(X_combined, y, group = groups_combined, family = "binomial", lambda = best_lambda_combined)
-
-
-```
-
-
-
-```{r}
-
-# List the non-zero coefficients
-extract_nonzero_coefficients <- function(model, variable_names) {
-  coefs <- coef(model)
-  nonzero_indices <- which(coefs != 0)
-  nonzero_coefs <- coefs[nonzero_indices]
-  nonzero_variable_names <- c("(Intercept)", variable_names)[nonzero_indices]
-  return(data.frame(Variable = nonzero_variable_names, Coefficient = nonzero_coefs))
+for (i in seq_along(predictors_final)) {
+  predictor <- predictors_final[i]
+  group_id <- group_ids[i]
+  matched_cols <- grep(paste0("^", predictor), column_names)
+  adjusted_groups[matched_cols] <- group_id
 }
 
-important_variables_combined <- extract_nonzero_coefficients(model_combined_final, colnames(X_combined))
-cat("\nImportant variables for the combined model:\n")
-print(important_variables_combined)
+# train-test split (80/20) (TRIED CV-10 folds, but ran into problems)
+set.seed(2024)  
+train_indices <- createDataPartition(y, p = 0.8, list = FALSE)
+x_train <- x[train_indices, ]
+y_train <- y[train_indices]
+x_test <- x[-train_indices, ]
+y_test <- y[-train_indices]
 
 
-important_variables_combined$Variable
-```
+###################
+####LASSO##########
+###################
+
+# Train Grouped Lasso model
+grouped_lasso <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", penalty = "grLasso", lambda.min.ratio = 1e-5)
+
+# Predict on test set for Lasso
+predictions_lasso <- predict(grouped_lasso, x_test, type = "response")
+
+# AUC for Lasso
+roc_curve_lasso <- roc(y_test, predictions_lasso)
+auc_lasso <- auc(roc_curve_lasso)
+
+# Accuracy for Lasso
+predicted_classes_lasso <- ifelse(predictions_lasso > 0.5, 1, 0)
+accuracy_lasso <- mean(predicted_classes_lasso == y_test)
 
 
+###################
+###RIDGE###########
+###################
+# Train Grouped Ridge model
+grouped_ridge <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", penalty = "gel", lambda.min.ratio = 1e-5)
+# Predict on test set for Ridge
+predictions_ridge <- predict(grouped_ridge, x_test, type = "response")
+
+# AUC for Ridge
+roc_curve_ridge <- roc(y_test, predictions_ridge)
+auc_ridge <- auc(roc_curve_ridge)
+
+# Accuracy for Ridge
+predicted_classes_ridge <- ifelse(predictions_ridge > 0.5, 1, 0)
+accuracy_ridge <- mean(predicted_classes_ridge == y_test)
+
+##################
+###ENET###########
+##################
+
+# Train Elastic Net model
+cv_glmnet_model <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 0.5, lambda = 10^seq(-4, 4, length.out = 100))
+# Predict on test set for Elastic Net
+predictions_enet <- predict(cv_glmnet_model, s = "lambda.min", newx = x_test, type = "response")
+
+# AUC for Elastic Net
+roc_curve_enet <- roc(y_test, predictions_enet)
+auc_enet <- auc(roc_curve_enet)
+
+# Accuracy for Elastic Net
+predicted_classes_enet <- ifelse(predictions_enet > 0.5, 1, 0)
+accuracy_enet <- mean(predicted_classes_enet == y_test)
 
 
-# Model 1: Full Data 
-
-```{r}
-set.seed(1)
-
-covariates_full <- c("h_cohort", "e3_sex_None", "hs_child_age_None")
-
-phthalates_full <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mehhp_madj_Log2", 
-                     "hs_mehp_madj_Log2", "hs_meohp_madj_Log2", "hs_mep_madj_Log2", 
-                     "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_ohminp_madj_Log2", 
-                     "hs_oxominp_madj_Log2")
-
-diet_full <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", 
-               "h_fastfood_preg_Ter", "h_fish_preg_Ter", "h_folic_t1_None", 
-               "h_fruit_preg_Ter", "h_legume_preg_Ter", "h_meat_preg_Ter", 
-               "h_pamod_t3_None", "h_pavig_t3_None", "h_veg_preg_Ter")
-
-outcome <- "hs_bmi_c_cat"
-
-predictors_full <- c(covariates_full, phthalates_full, diet_full)
-
-# Cat --> Factor 
-full_dataset <- full_dataset %>%
-  mutate(across(c(covariates_full, diet_full), as.factor))
-
-# Fact --> Num
-full_dataset <- full_dataset %>%
-  mutate(across(where(is.factor), ~ as.numeric(as.factor(.))))
+#print(paste("Lasso - AUC: ", auc_lasso))
+#print(paste("Lasso - Accuracy: ", accuracy_lasso))
+#print(paste("Ridge - AUC: ", auc_ridge))
+#print(paste("Ridge - Accuracy: ", accuracy_ridge))
+#print(paste("Elastic Net - AUC: ", auc_enet))
+#print(paste("Elastic Net - Accuracy: ", accuracy_enet))
 
 
-full_dataset <- full_dataset %>%
-  mutate(across(phthalates_full, as.numeric))
+roc_data_lasso <- data.frame(
+  specificity = 1 - roc_curve_lasso$specificities,
+  sensitivity = roc_curve_lasso$sensitivities,
+  Model = "Lasso"
+)
+
+roc_data_ridge <- data.frame(
+  specificity = 1 - roc_curve_ridge$specificities,
+  sensitivity = roc_curve_ridge$sensitivities,
+  Model = "Ridge"
+)
+
+roc_data_enet <- data.frame(
+  specificity = 1 - roc_curve_enet$specificities,
+  sensitivity = roc_curve_enet$sensitivities,
+  Model = "Elastic Net"
+)
+
+roc_data_combined <- rbind(roc_data_lasso, roc_data_ridge, roc_data_enet)
+
+#  ROC curve visuakization
+ggplot(roc_data_combined, aes(x = specificity, y = sensitivity, color = Model)) +
+  geom_line(size = 1) +
+  geom_abline(linetype = "dashed", color = "red") +
+  labs(title = "ROC Curves for Lasso, Ridge, and Elastic Net",
+       x = "1 - Specificity",
+       y = "Sensitivity") +
+  theme_minimal()
 
 
-X <- as.matrix(full_dataset[, predictors_full])
-Y <- full_dataset[, outcome]
+grouped_lasso <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", penalty = "grLasso", lambda.min.ratio = 1e-5)
 
-# Group vector
-groups_full <- c(rep(1, length(covariates_full)), 
-                 rep(2, length(phthalates_full)), 
-                 rep(3, length(diet_full)))
+#  important variables
+coef_lasso <- coef(grouped_lasso, s = "lambda.min")
 
+#  non-zero coefficients and remove intercept
+important_vars <- coef_lasso[coef_lasso != 0]
+important_vars <- important_vars[names(important_vars) != "(Intercept)"]
 
-train_control <- trainControl(method = "cv", number = 10, 
-                              savePredictions = TRUE, 
-                              classProbs = TRUE)
+#  important variables
+important_vars_df <- data.frame(
+  Variable = names(important_vars),
+  Coefficient = as.numeric(important_vars)
+)
 
+kable(important_vars_df, format = "html", caption = "Important Variables for Grouped Lasso") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
 
-group_lasso_train <- function(X, Y, groups, train_control) {
-  cv_folds <- createFolds(Y, k = train_control$number, list = TRUE)
-  results <- lapply(cv_folds, function(test_idx) {
-    train_idx <- setdiff(seq_len(nrow(X)), test_idx)
-    X_train <- X[train_idx, ]
-    Y_train <- Y[train_idx]
-    X_test <- X[test_idx, ]
-    Y_test <- Y[test_idx]
-    
-    fit <- cv.grpreg(X_train, Y_train, group = groups, penalty = "grLasso")
-    predictions <- predict(fit, X_test, type = "response", s = "lambda.min")
-    
-    list(predictions = predictions, actual = Y_test)
-  })
-  
-  predictions <- unlist(lapply(results, `[[`, "predictions"))
-  actual <- unlist(lapply(results, `[[`, "actual"))
-  
-  return(data.frame(predictions = predictions, actual = actual))
-}
-
-# Train the model using group lasso with CV
-cv_results <- group_lasso_train(X, Y, groups_full, train_control)
-
-# performance
-predicted_classes <- ifelse(cv_results$predictions > 0.5, 1, 0)
-confusion_matrix <- table(Predicted = predicted_classes, Actual = cv_results$actual)
-
-# confusion matrix
-print(confusion_matrix)
-
-# accuracy
-accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
-print(paste("Accuracy: ", accuracy))
-
-# ROC AUC
-roc_curve <- roc(cv_results$actual, cv_results$predictions)
-print(paste("ROC AUC: ", roc_curve$auc))
-
-```
-
-
-## Model 2: Var Importance Data 
-
-
-```{r}
-set.seed(1)
-covariates <- c("h_cohort", "e3_sex_None", "hs_child_age_None")
-
-phthalates <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mep_madj_Log2", 
-                "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_oxominp_madj_Log2")
-
-diet <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter",
-          "h_folic_t1_None", "h_fruit_preg_Ter", "h_meat_preg_Ter", "h_pamod_t3_None")
-
-outcome <- "hs_bmi_c_cat"
-
-predictors <- c(covariates, phthalates, diet)
-
-# Cat -> Fact
-important_dataset <- important_dataset %>%
-  mutate(across(c(covariates, diet), as.factor))
-
-# Fact -> Num
-important_dataset <- important_dataset %>%
-  mutate(across(where(is.factor), ~ as.numeric(as.factor(.))))
-
-important_dataset <- important_dataset %>%
-  mutate(across(phthalates, as.numeric))
-
-
-X <- as.matrix(important_dataset[, predictors])
-Y <- important_dataset[, outcome]
-
-# grouping vector
-groups <- c(rep(1, length(covariates)), 
-            rep(2, length(phthalates)), 
-            rep(3, length(diet)))
-
-# control for CV
-train_control <- trainControl(method = "cv", number = 10, 
-                              savePredictions = TRUE, 
-                              classProbs = TRUE)
-
-
-group_lasso_train <- function(X, Y, groups, train_control) {
-  cv_folds <- createFolds(Y, k = train_control$number, list = TRUE)
-  results <- lapply(cv_folds, function(test_idx) {
-    train_idx <- setdiff(seq_len(nrow(X)), test_idx)
-    X_train <- X[train_idx, ]
-    Y_train <- Y[train_idx]
-    X_test <- X[test_idx, ]
-    Y_test <- Y[test_idx]
-    
-    fit <- cv.grpreg(X_train, Y_train, group = groups, penalty = "grLasso")
-    predictions <- predict(fit, X_test, type = "response", s = "lambda.min")
-    
-    list(predictions = predictions, actual = Y_test)
-  })
-  
-  predictions <- unlist(lapply(results, `[[`, "predictions"))
-  actual <- unlist(lapply(results, `[[`, "actual"))
-  
-  return(data.frame(predictions = predictions, actual = actual))
-}
-
-# Train the model using group lasso with CV
-cv_results <- group_lasso_train(X, Y, groups, train_control)
-
-# performance
-predicted_classes <- ifelse(cv_results$predictions > 0.5, 1, 0)
-confusion_matrix <- table(Predicted = predicted_classes, Actual = cv_results$actual)
-
-# confusion matrix
-print(confusion_matrix)
-
-# accuracy
-accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
-print(paste("Accuracy: ", accuracy))
-
-# ROC AUC
-roc_curve <- roc(cv_results$actual, cv_results$predictions)
-print(paste("ROC AUC: ", roc_curve$auc))
 
 ```
 
+In this analysis, three different regression models (Lasso, Ridge, and
+Elastic Net) were applied to the Helix dataset, which excludes
+metabolomics data.
+
+The models were trained on 80% of the data and tested on the remaining
+20%. For the Lasso model, the Area Under the Curve (AUC) was 0.592, with
+an accuracy of 69.6%. The Ridge model yielded an AUC of 0.584 and the
+same accuracy of 69.6%. The Elastic Net model resulted in an AUC of
+0.589 and an accuracy of 68.5%. Overall, while the accuracies were
+similar across models, the Lasso model performed slightly better in terms of AUC compared to Ridge and Elastic Net.
+
+### Model A and Model B: Regression Analysis for BMI Category (excluding Metabolomics)
 
 
 
+```{r, message=FALSE, warning=FALSE}
 
-## Model 3: Var Importance Data  + Metabolomics Data 
+full_dataset$hs_bmi_c_cat <- as.factor(full_dataset$hs_bmi_c_cat)
+full_dataset$e3_sex_None <- as.factor(full_dataset$e3_sex_None)
+
+# 80/20 split 
+set.seed(2024) 
+trainIndex <- createDataPartition(full_dataset$hs_bmi_c_cat, p = .8, list = FALSE, times = 1)
+train_data <- full_dataset[trainIndex, ]
+test_data <- full_dataset[-trainIndex, ]
+
+# Two models (covariates and covariates + diet)
+formula1 <- hs_bmi_c_cat ~ h_cohort + e3_sex_None + hs_child_age_None
+formula2 <- hs_bmi_c_cat ~ h_cohort + e3_sex_None + hs_child_age_None + 
+            e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter + 
+            h_fastfood_preg_Ter + h_folic_t1_None + h_fruit_preg_Ter + 
+            h_meat_preg_Ter + h_pamod_t3_None
+
+# Train and test the models using LASSO with CV
+
+# Model A
+x_train1 <- model.matrix(formula1, data = train_data)[, -1]
+y_train <- train_data$hs_bmi_c_cat
+cv.lasso1 <- cv.glmnet(x_train1, y_train, alpha = 1, family = "binomial")
+best_lambda1 <- cv.lasso1$lambda.min
+
+# Model B
+x_train2 <- model.matrix(formula2, data = train_data)[, -1]
+cv.lasso2 <- cv.glmnet(x_train2, y_train, alpha = 1, family = "binomial")
+best_lambda2 <- cv.lasso2$lambda.min
 
 
+# Evaluate Model A
+x_test1 <- model.matrix(formula1, data = test_data)[, -1]
+predictions1 <- predict(cv.lasso1, s = best_lambda1, newx = x_test1, type = "response")
+roc1 <- roc(test_data$hs_bmi_c_cat, predictions1)
+auc1 <- auc(roc1)
+predicted_classes1 <- ifelse(predictions1 > 0.5, 1, 0)
+accuracy1 <- mean(predicted_classes1 == test_data$hs_bmi_c_cat)
 
-```{r}
-covariates_final <- c("h_cohort", "e3_sex_None", "hs_child_age_None")
+# Evaluate Model B
+x_test2 <- model.matrix(formula2, data = test_data)[, -1]
+predictions2 <- predict(cv.lasso2, s = best_lambda2, newx = x_test2, type = "response")
+roc2 <- roc(test_data$hs_bmi_c_cat, predictions2)
+auc2 <- auc(roc2)
+predicted_classes2 <- ifelse(predictions2 > 0.5, 1, 0)
+accuracy2 <- mean(predicted_classes2 == test_data$hs_bmi_c_cat)
 
-phthalates_final <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mep_madj_Log2", 
-                      "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_oxominp_madj_Log2")
-diet_final <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", 
-                "h_fastfood_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
-                "h_meat_preg_Ter", "h_pamod_t3_None")
-metabolites_final <- grep("^metab_", colnames(var_imp_data_with_meta), value = TRUE)
+# AUC and Accuracy
+#print(paste("Model A: Covariates - AUC:", round(auc1, 3), "Accuracy:", round(accuracy1, 3)))
+#print(paste("Model B: Covariates + Diet - AUC:", round(auc2, 3), "Accuracy:", round(accuracy2, 3)))
 
-outcome <- "hs_bmi_c_cat"
+# ROC curves data for ggplot2
+roc_data1 <- data.frame(
+  specificity = 1 - roc1$specificities,
+  sensitivity = roc1$sensitivities,
+  Model = "Model A: Covariates"
+)
 
-predictors_final <- c(covariates_final, phthalates_final, diet_final, metabolites_final)
+roc_data2 <- data.frame(
+  specificity = 1 - roc2$specificities,
+  sensitivity = roc2$sensitivities,
+  Model = "Model B: Covariates + Diet"
+)
+
+roc_data_combined <- rbind(roc_data1, roc_data2)
+
+# ROC curves with ggplot2
+ggplot(roc_data_combined, aes(x = specificity, y = sensitivity, color = Model)) +
+  geom_line(size = 1) +
+  geom_abline(linetype = "dashed", color = "grey") +
+  labs(title = "ROC Curve Comparison for Model A and Model B",
+       x = "1 - Specificity",
+       y = "Sensitivity") +
+  theme_minimal() +
+  theme(legend.position = "right") +
+  scale_color_manual(values = c("Model A: Covariates" = "lightgreen", 
+                                "Model B: Covariates + Diet" = "lightpink"))
+
 ```
 
+For Model A, which includes only covariates, the Area Under the Curve (AUC) is 0.628 and the accuracy is 0.707. For Model B, which includes both covariates and dietary factors, the AUC is 0.616 and the accuracy is also 0.707. This indicates that the inclusion of dietary factors in Model B did not improve the model's performance compared to Model A.
+
+
+### Model C and Model D: Group Lasso Regression Analysis for BMI Category
+
 
 ```{r}
-# Impute missing values with column mean!! CANNOT DEAL WITH NA
-var_imp_data_with_meta <- var_imp_data_with_meta %>%
+full_data_with_meta_imputed <- full_data_with_meta %>%
   mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
-```
-
-```{r}
-# Cat --> Fact
-var_imp_data_with_meta <- var_imp_data_with_meta %>%
-  mutate(across(c(covariates_final, diet_final), as.factor))
-
-# Fact --> Num
-var_imp_data_with_meta <- var_imp_data_with_meta %>%
-  mutate(across(where(is.factor), ~ as.numeric(as.factor(.))))
-
-
-var_imp_data_with_meta <- var_imp_data_with_meta %>%
-  mutate(across(phthalates_final, as.numeric))
-
-
-X <- as.matrix(var_imp_data_with_meta[, predictors_final])
-Y <- var_imp_data_with_meta[, outcome]
-
-# grouping vector
-groups_final <- c(rep(1, length(covariates_final)), 
-                  rep(2, length(phthalates_final)), 
-                  rep(3, length(diet_final)), 
-                  rep(4, length(metabolites_final)))
-
-# control for CV
-train_control <- trainControl(method = "cv", number = 10, 
-                              savePredictions = TRUE, 
-                              classProbs = TRUE)
-
-group_lasso_train <- function(X, Y, groups, train_control) {
-  cv_folds <- createFolds(Y, k = train_control$number, list = TRUE)
-  all_results <- list()
-  for (fold in seq_along(cv_folds)) {
-    test_idx <- cv_folds[[fold]]
-    train_idx <- setdiff(seq_len(nrow(X)), test_idx)
-    
-    X_train <- X[train_idx, ]
-    Y_train <- Y[train_idx]
-    X_test <- X[test_idx, ]
-    Y_test <- Y[test_idx]
-    
-    fit <- cv.grpreg(X_train, Y_train, group = groups, penalty = "grLasso")
-    predictions <- predict(fit, X_test, type = "response", s = "lambda.min")
-    
-    fold_results <- data.frame(predictions = predictions, actual = Y_test)
-    all_results[[fold]] <- fold_results
-  }
-  
-  results <- do.call(rbind, all_results)
-  return(results)
-}
-
-# Train the model using group lasso with CV
-cv_results <- group_lasso_train(X, Y, groups_final, train_control)
-
-# performance
-predicted_classes <- ifelse(cv_results$predictions > 0.5, 1, 0)
-confusion_matrix <- table(Predicted = predicted_classes, Actual = cv_results$actual)
-
-# confusion matrix
-print(confusion_matrix)
-
-# accuracy
-accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
-print(paste("Accuracy: ", accuracy))
-
-# ROC AUC
-roc_curve <- roc(cv_results$actual, cv_results$predictions)
-print(paste("ROC AUC: ", roc_curve$auc))
 
 ```
 
 
-Random Forest on the Best Model ( Cont...)
+
+```{r, message=FALSE}
+
+y <- as.numeric(as.factor(full_data_with_meta_imputed$hs_bmi_c_cat)) - 1
 
 
-https://stat.ethz.ch/Manuscripts/buhlmann/logistic-grouplasso-final.pdf
-https://cran.r-project.org/web/packages/grplasso/grplasso.pdf
+metabolites_final <- grep("^meta", names(full_data_with_meta_imputed), value = TRUE)
+
+# Model C: Covariates + Diet + Phthalates
+predictors_model3 <- c(covariates_final, phthalates_final, diet_final)
+X_model3 <- model.matrix(~ . - 1, data = full_data_with_meta_imputed[, predictors_model3])
+group_structure_model3 <- c(rep(1, length(covariates_final)),
+                            rep(2, length(phthalates_final)),
+                            rep(3, length(diet_final)))
+
+# Fit group lasso model using grpreg for Model C
+fit_model3 <- grpreg(X_model3, y, group = group_structure_model3, penalty = "grLasso")
+cv_fit_model3 <- cv.grpreg(X_model3, y, group = group_structure_model3, penalty = "grLasso", nfolds = 10)
+best_lambda_model3 <- cv_fit_model3$lambda.min
+best_fit_model3 <- grpreg(X_model3, y, group = group_structure_model3, penalty = "grLasso", lambda = best_lambda_model3)
+predictions_model3 <- predict(best_fit_model3, X_model3, type = "response")
+roc_curve_model3 <- roc(y, as.numeric(predictions_model3))
+auc_value_model3 <- auc(roc_curve_model3)
+#print(paste("AUC for Model C: ", auc_value_model3))
+
+# accuracy for Model C
+predicted_classes_model3 <- ifelse(predictions_model3 > 0.5, 1, 0)
+accuracy_model3 <- mean(predicted_classes_model3 == y)
+#print(paste("Accuracy for Model C: ", accuracy_model3))
+
+# Model D: Covariates + Diet + Phthalates + Metabolites
+predictors_model4 <- c(covariates_final, phthalates_final, diet_final, metabolites_final)
+X_model4 <- model.matrix(~ . - 1, data = full_data_with_meta_imputed[, predictors_model4])
+group_structure_model4 <- c(rep(1, length(covariates_final)),
+                            rep(2, length(phthalates_final)),
+                            rep(3, length(diet_final)),
+                            rep(4, length(metabolites_final)))
+
+# Fit group lasso model using grpreg for Model D
+fit_model4 <- grpreg(X_model4, y, group = group_structure_model4, penalty = "grLasso")
+cv_fit_model4 <- cv.grpreg(X_model4, y, group = group_structure_model4, penalty = "grLasso", nfolds = 10)
+best_lambda_model4 <- cv_fit_model4$lambda.min
+best_fit_model4 <- grpreg(X_model4, y, group = group_structure_model4, penalty = "grLasso", lambda = best_lambda_model4)
+predictions_model4 <- predict(best_fit_model4, X_model4, type = "response")
+roc_curve_model4 <- roc(y, as.numeric(predictions_model4))
+auc_value_model4 <- auc(roc_curve_model4)
+#print(paste("AUC for Model D: ", auc_value_model4))
+
+# Accuracy for Model D
+predicted_classes_model4 <- ifelse(predictions_model4 > 0.5, 1, 0)
+accuracy_model4 <- mean(predicted_classes_model4 == y)
+#print(paste("Accuracy for Model D: ", accuracy_model4))
+
+# Data for ggplot
+roc_data_model3 <- data.frame(
+  specificity = 1 - roc_curve_model3$specificities,
+  sensitivity = roc_curve_model3$sensitivities,
+  Model = "Model C: Covariate + Diet + Chemicals"
+)
+
+roc_data_model4 <- data.frame(
+  specificity = 1 - roc_curve_model4$specificities,
+  sensitivity = roc_curve_model4$sensitivities,
+  Model = "Model D: Covariate + Diet + Chemicals + Meta"
+)
+
+roc_data_combined <- rbind(roc_data_model3, roc_data_model4)
+
+# ROC curves with ggplot2
+ggplot(roc_data_combined, aes(x = specificity, y = sensitivity, color = Model)) +
+  geom_line(size = 1) +
+  geom_abline(linetype = "dashed", color = "grey") +
+  labs(title = "ROC Curve Comparison for Model C and Model D",
+       x = "1 - Specificity",
+       y = "Sensitivity") +
+  theme_minimal() +
+  theme(legend.position = "right") +
+  scale_color_manual(values = c("Model C: Covariate + Diet + Chemicals" = "lavender", 
+                                "Model D: Covariate + Diet + Chemicals + Meta" = "lightblue"))
+
+```
+This analysis evaluated two logistic regression models using the Group Lasso method to predict BMI categories, with missing values imputed using the mean. Model C, which included covariates, dietary factors, and chemical exposures, achieved an AUC of 0.643 and an accuracy of 0.705. Model D, which additionally incorporated metabolite data, showed significantly improved performance with an AUC of 0.925 and an accuracy of 0.860. These results indicate that including metabolite data enhances the model's predictive power, demonstrating its value in accurately classifying BMI categories.
+
+### Model 2: Random Forest Model
+
+* Hyperparameter Tuning
+* Print Important Var 
+* Train and Test the data using 80/20 split 
+* Redo This 
+
+
+```{r, message=FALSE}
+
+
+predictors <- c(covariates_final, phthalates_final, diet_final, metabolites_final)
+y <- as.factor(full_data_with_meta_imputed$hs_bmi_c_cat)
+
+# make that matrix!
+X <- full_data_with_meta_imputed[, predictors]
+
+# Fit the Random Forest model 
+set.seed(2024)  
+rf_model <- randomForest(X, y, importance = TRUE, ntree = 500, maxnodes = 30, nodesize = 10)
+
+# summary
+print(rf_model)
+
+#  var importance
+var_importance <- importance(rf_model)
+
+# var inmportance
+varImpPlot(rf_model)
+
+
+predictions <- predict(rf_model, X, type = "prob")[,2]
+
+#  AUC
+roc_curve <- roc(y, predictions)
+auc_value <- auc(roc_curve)
+print(paste("AUC: ", auc_value))
+
+#  ROC curve
+plot(roc_curve, main = "ROC Curve", col = "blue")
+
+```
+
+
+
+
+
