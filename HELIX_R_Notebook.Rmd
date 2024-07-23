@@ -159,7 +159,7 @@ The dataset was split into training (80%) and testing (20%) sets using stratifie
 - `e3_sex_None`
 - `hs_child_age_None`
 
-### Diet Variables
+### Diet Variables (12 Diet)
 - `e3_alcpreg_yn_None`
 - `h_cereal_preg_Ter`
 - `h_dairy_preg_Ter`
@@ -168,14 +168,22 @@ The dataset was split into training (80%) and testing (20%) sets using stratifie
 - `h_fruit_preg_Ter`
 - `h_meat_preg_Ter`
 - `h_pamod_t3_None`
+- `h_fish_preg_Ter`
+- `h_legume_preg_Ter`
+- `h_pavig_t3_None`
+- `h_veg_preg_Ter`
 
-### Chemical Variables
+### Chemical Variables (10 Chemicals)
 - `hs_mbzp_madj_Log2`
 - `hs_mecpp_madj_Log2`
 - `hs_mep_madj_Log2`
 - `hs_mibp_madj_Log2`
 - `hs_mnbp_madj_Log2`
 - `hs_oxominp_madj_Log2`
+- `hs_mehhp_madj_Log2`
+- `hs_meohp_madj_Log2`
+- `hs_ohminp_madj_Log2`
+- `hs_mehp_madj_Log2`
 
 ### Meta Variables
 Additional biochemical markers from urine metabolomics data. Click link below for more information:
@@ -622,11 +630,20 @@ integrity of variable groups.
 
 
 ```{r, message=FALSE, warning= FALSE}
-#Grouped Variables
+# Grouped Variables
 outcome <- "hs_bmi_c_cat"
-covariates_final <- c("h_cohort", "e3_sex_None", "hs_child_age_None") #THESE VARIABLES NEED TO BE FORCED IN THE MODEL 
-phthalates_final <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mep_madj_Log2", "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_oxominp_madj_Log2")
-diet_final <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", "h_fastfood_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", "h_meat_preg_Ter", "h_pamod_t3_None")
+
+covariates_final <- c("h_cohort", "e3_sex_None", "hs_child_age_None") # THESE VARIABLES NEED TO BE FORCED IN THE MODEL
+
+phthalates_final <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mep_madj_Log2", 
+                      "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_oxominp_madj_Log2", 
+                      "hs_mehhp_madj_Log2", "hs_meohp_madj_Log2", "hs_ohminp_madj_Log2", 
+                      "hs_mehp_madj_Log2")
+
+diet_final <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", 
+                "h_fastfood_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
+                "h_meat_preg_Ter", "h_pamod_t3_None", "h_fish_preg_Ter", 
+                "h_legume_preg_Ter", "h_pavig_t3_None", "h_veg_preg_Ter")
 
 predictors_final <- c(covariates_final, phthalates_final, diet_final)
 
@@ -650,6 +667,9 @@ for (i in seq_along(predictors_final)) {
   adjusted_groups[matched_cols] <- group_id
 }
 
+# Penalization factors (Keep covariates in the model)
+penalty_factor <- ifelse(adjusted_groups == 1, 0, 1)
+
 # train-test split (80/20) (TRIED CV-10 folds, but ran into problems)
 set.seed(2024)  
 train_indices <- createDataPartition(y, p = 0.8, list = FALSE)
@@ -658,13 +678,12 @@ y_train <- y[train_indices]
 x_test <- x[-train_indices, ]
 y_test <- y[-train_indices]
 
-
 ###################
 ####LASSO##########
 ###################
 
 # Train Grouped Lasso model
-grouped_lasso <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", penalty = "grLasso", lambda.min.ratio = 1e-5)
+grouped_lasso <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", penalty = "grLasso", penalty.factor = penalty_factor, lambda.min.ratio = 1e-5)
 
 # Predict on test set for Lasso
 predictions_lasso <- predict(grouped_lasso, x_test, type = "response")
@@ -677,12 +696,12 @@ auc_lasso <- auc(roc_curve_lasso)
 predicted_classes_lasso <- ifelse(predictions_lasso > 0.5, 1, 0)
 accuracy_lasso <- mean(predicted_classes_lasso == y_test)
 
-
 ###################
 ###RIDGE###########
 ###################
 # Train Grouped Ridge model
-grouped_ridge <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", penalty = "gel", lambda.min.ratio = 1e-5)
+grouped_ridge <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", penalty = "gel", penalty.factor = penalty_factor, lambda.min.ratio = 1e-5)
+
 # Predict on test set for Ridge
 predictions_ridge <- predict(grouped_ridge, x_test, type = "response")
 
@@ -699,7 +718,8 @@ accuracy_ridge <- mean(predicted_classes_ridge == y_test)
 ##################
 
 # Train Elastic Net model
-cv_glmnet_model <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 0.5, lambda = 10^seq(-4, 4, length.out = 100))
+cv_glmnet_model <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 0.5, lambda = 10^seq(-4, 4, length.out = 100), penalty.factor = penalty_factor)
+
 # Predict on test set for Elastic Net
 predictions_enet <- predict(cv_glmnet_model, s = "lambda.min", newx = x_test, type = "response")
 
@@ -711,14 +731,12 @@ auc_enet <- auc(roc_curve_enet)
 predicted_classes_enet <- ifelse(predictions_enet > 0.5, 1, 0)
 accuracy_enet <- mean(predicted_classes_enet == y_test)
 
-
-#print(paste("Lasso - AUC: ", auc_lasso))
-#print(paste("Lasso - Accuracy: ", accuracy_lasso))
-#print(paste("Ridge - AUC: ", auc_ridge))
-#print(paste("Ridge - Accuracy: ", accuracy_ridge))
-#print(paste("Elastic Net - AUC: ", auc_enet))
-#print(paste("Elastic Net - Accuracy: ", accuracy_enet))
-
+print(paste("Lasso - AUC: ", auc_lasso))
+print(paste("Lasso - Accuracy: ", accuracy_lasso))
+print(paste("Ridge - AUC: ", auc_ridge))
+print(paste("Ridge - Accuracy: ", accuracy_ridge))
+print(paste("Elastic Net - AUC: ", auc_enet))
+print(paste("Elastic Net - Accuracy: ", accuracy_enet))
 
 roc_data_lasso <- data.frame(
   specificity = 1 - roc_curve_lasso$specificities,
@@ -740,7 +758,7 @@ roc_data_enet <- data.frame(
 
 roc_data_combined <- rbind(roc_data_lasso, roc_data_ridge, roc_data_enet)
 
-#  ROC curve visuakization
+# ROC curve visualization
 ggplot(roc_data_combined, aes(x = specificity, y = sensitivity, color = Model)) +
   geom_line(size = 1) +
   geom_abline(linetype = "dashed", color = "red") +
@@ -749,17 +767,17 @@ ggplot(roc_data_combined, aes(x = specificity, y = sensitivity, color = Model)) 
        y = "Sensitivity") +
   theme_minimal()
 
+# Train Grouped Lasso model
+grouped_lasso <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", penalty = "grLasso", penalty.factor = penalty_factor, lambda.min.ratio = 1e-5)
 
-grouped_lasso <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", penalty = "grLasso", lambda.min.ratio = 1e-5)
-
-#  important variables
+# Important variables
 coef_lasso <- coef(grouped_lasso, s = "lambda.min")
 
-#  non-zero coefficients and remove intercept
+# Non-zero coefficients and remove intercept
 important_vars <- coef_lasso[coef_lasso != 0]
 important_vars <- important_vars[names(important_vars) != "(Intercept)"]
 
-#  important variables
+# Important variables
 important_vars_df <- data.frame(
   Variable = names(important_vars),
   Coefficient = as.numeric(important_vars)
@@ -768,22 +786,12 @@ important_vars_df <- data.frame(
 kable(important_vars_df, format = "html", caption = "Important Variables for Grouped Lasso") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
 
-
 ```
+In this analysis, three different regression models (Lasso, Ridge, and Elastic Net) were applied to the Helix dataset, which excludes metabolomics data. Covariates were forced in the model.
 
-In this analysis, three different regression models (Lasso, Ridge, and
-Elastic Net) were applied to the Helix dataset, which excludes
-metabolomics data.
-
-The models were trained on 80% of the data and tested on the remaining
-20%. For the Lasso model, the Area Under the Curve (AUC) was 0.592, with
-an accuracy of 69.6%. The Ridge model yielded an AUC of 0.584 and the
-same accuracy of 69.6%. The Elastic Net model resulted in an AUC of
-0.589 and an accuracy of 68.5%. Overall, while the accuracies were
-similar across models, the Lasso model performed slightly better in terms of AUC compared to Ridge and Elastic Net.
+The models were trained on 80% of the data and tested on the remaining 20%. For the Lasso model, the Area Under the Curve (AUC) was 0.588, with an accuracy of 69.6%. The Ridge model yielded an AUC of 0.584 and the same accuracy of 69.6%. The Elastic Net model resulted in an AUC of 0.585 and an accuracy of 69.6%. Overall, while the accuracies were identical across models, the Lasso model performed slightly better in terms of AUC compared to Ridge and Elastic Net.
 
 ### Model A and Model B: Regression Analysis for BMI Category (excluding Metabolomics)
-
 
 
 ```{r, message=FALSE, warning=FALSE}
@@ -797,7 +805,7 @@ trainIndex <- createDataPartition(full_dataset$hs_bmi_c_cat, p = .8, list = FALS
 train_data <- full_dataset[trainIndex, ]
 test_data <- full_dataset[-trainIndex, ]
 
-# Two models (covariates and covariates + diet)
+# Two models (covariates and covariates + diet) don't need to force the models
 formula1 <- hs_bmi_c_cat ~ h_cohort + e3_sex_None + hs_child_age_None
 formula2 <- hs_bmi_c_cat ~ h_cohort + e3_sex_None + hs_child_age_None + 
             e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter + 
@@ -835,8 +843,8 @@ predicted_classes2 <- ifelse(predictions2 > 0.5, 1, 0)
 accuracy2 <- mean(predicted_classes2 == test_data$hs_bmi_c_cat)
 
 # AUC and Accuracy
-#print(paste("Model A: Covariates - AUC:", round(auc1, 3), "Accuracy:", round(accuracy1, 3)))
-#print(paste("Model B: Covariates + Diet - AUC:", round(auc2, 3), "Accuracy:", round(accuracy2, 3)))
+print(paste("Model A: Covariates - AUC:", round(auc1, 3), "Accuracy:", round(accuracy1, 3)))
+print(paste("Model B: Covariates + Diet - AUC:", round(auc2, 3), "Accuracy:", round(accuracy2, 3)))
 
 # ROC curves data for ggplot2
 roc_data1 <- data.frame(
@@ -874,6 +882,7 @@ For Model A, which includes only covariates, the Area Under the Curve (AUC) is 0
 
 
 ```{r}
+#Imuting
 full_data_with_meta_imputed <- full_data_with_meta %>%
   mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
 
@@ -881,11 +890,13 @@ full_data_with_meta_imputed <- full_data_with_meta %>%
 
 
 
-```{r, message=FALSE}
 
+
+```{r, warning=FALSE}
+# Convert outcome variable
 y <- as.numeric(as.factor(full_data_with_meta_imputed$hs_bmi_c_cat)) - 1
 
-
+# Metabolites variables
 metabolites_final <- grep("^meta", names(full_data_with_meta_imputed), value = TRUE)
 
 # Model C: Covariates + Diet + Phthalates
@@ -895,20 +906,34 @@ group_structure_model3 <- c(rep(1, length(covariates_final)),
                             rep(2, length(phthalates_final)),
                             rep(3, length(diet_final)))
 
+# Penalization factors (0 for covariates to force them in the model)
+penalty_factor_model3 <- ifelse(group_structure_model3 == 1, 0, 1)
+
 # Fit group lasso model using grpreg for Model C
-fit_model3 <- grpreg(X_model3, y, group = group_structure_model3, penalty = "grLasso")
-cv_fit_model3 <- cv.grpreg(X_model3, y, group = group_structure_model3, penalty = "grLasso", nfolds = 10)
+fit_model3 <- grpreg(X_model3, y, group = group_structure_model3, penalty = "grLasso", penalty.factor = penalty_factor_model3)
+cv_fit_model3 <- cv.grpreg(X_model3, y, group = group_structure_model3, penalty = "grLasso", penalty.factor = penalty_factor_model3, nfolds = 10)
 best_lambda_model3 <- cv_fit_model3$lambda.min
-best_fit_model3 <- grpreg(X_model3, y, group = group_structure_model3, penalty = "grLasso", lambda = best_lambda_model3)
+best_fit_model3 <- grpreg(X_model3, y, group = group_structure_model3, penalty = "grLasso", penalty.factor = penalty_factor_model3, lambda = best_lambda_model3)
 predictions_model3 <- predict(best_fit_model3, X_model3, type = "response")
 roc_curve_model3 <- roc(y, as.numeric(predictions_model3))
 auc_value_model3 <- auc(roc_curve_model3)
-#print(paste("AUC for Model C: ", auc_value_model3))
 
-# accuracy for Model C
+# Accuracy for Model C
 predicted_classes_model3 <- ifelse(predictions_model3 > 0.5, 1, 0)
 accuracy_model3 <- mean(predicted_classes_model3 == y)
-#print(paste("Accuracy for Model C: ", accuracy_model3))
+
+# Print AUC and accuracy for Model C
+print(paste("AUC for Model C: ", auc_value_model3))
+print(paste("Accuracy for Model C: ", accuracy_model3))
+
+# Variable importance for Model C
+coef_model3 <- coef(best_fit_model3)
+important_vars_model3 <- coef_model3[coef_model3 != 0]
+important_vars_model3 <- important_vars_model3[names(important_vars_model3) != "(Intercept)"]
+important_vars_df_model3 <- data.frame(
+  Variable = names(important_vars_model3),
+  Coefficient = as.numeric(important_vars_model3)
+)
 
 # Model D: Covariates + Diet + Phthalates + Metabolites
 predictors_model4 <- c(covariates_final, phthalates_final, diet_final, metabolites_final)
@@ -918,20 +943,40 @@ group_structure_model4 <- c(rep(1, length(covariates_final)),
                             rep(3, length(diet_final)),
                             rep(4, length(metabolites_final)))
 
+# Penalization factors (0 for covariates to force them in the model)
+penalty_factor_model4 <- ifelse(group_structure_model4 == 1, 0, 1)
+
 # Fit group lasso model using grpreg for Model D
-fit_model4 <- grpreg(X_model4, y, group = group_structure_model4, penalty = "grLasso")
-cv_fit_model4 <- cv.grpreg(X_model4, y, group = group_structure_model4, penalty = "grLasso", nfolds = 10)
+fit_model4 <- grpreg(X_model4, y, group = group_structure_model4, penalty = "grLasso", penalty.factor = penalty_factor_model4)
+cv_fit_model4 <- cv.grpreg(X_model4, y, group = group_structure_model4, penalty = "grLasso", penalty.factor = penalty_factor_model4, nfolds = 10)
 best_lambda_model4 <- cv_fit_model4$lambda.min
-best_fit_model4 <- grpreg(X_model4, y, group = group_structure_model4, penalty = "grLasso", lambda = best_lambda_model4)
+best_fit_model4 <- grpreg(X_model4, y, group = group_structure_model4, penalty = "grLasso", penalty.factor = penalty_factor_model4, lambda = best_lambda_model4)
 predictions_model4 <- predict(best_fit_model4, X_model4, type = "response")
 roc_curve_model4 <- roc(y, as.numeric(predictions_model4))
 auc_value_model4 <- auc(roc_curve_model4)
-#print(paste("AUC for Model D: ", auc_value_model4))
 
 # Accuracy for Model D
 predicted_classes_model4 <- ifelse(predictions_model4 > 0.5, 1, 0)
 accuracy_model4 <- mean(predicted_classes_model4 == y)
-#print(paste("Accuracy for Model D: ", accuracy_model4))
+
+# Print AUC and accuracy for Model D
+print(paste("AUC for Model D: ", auc_value_model4))
+print(paste("Accuracy for Model D: ", accuracy_model4))
+
+# Variable importance for Model D
+coef_model4 <- coef(best_fit_model4)
+important_vars_model4 <- coef_model4[coef_model4 != 0]
+important_vars_model4 <- important_vars_model4[names(important_vars_model4) != "(Intercept)"]
+important_vars_df_model4 <- data.frame(
+  Variable = names(important_vars_model4),
+  Coefficient = as.numeric(important_vars_model4)
+)
+
+# variable importance
+#print("Variable Importance for Model C:")
+#print(important_vars_df_model3)
+#print("Variable Importance for Model D:")
+#print(important_vars_df_model4)
 
 # Data for ggplot
 roc_data_model3 <- data.frame(
@@ -961,48 +1006,22 @@ ggplot(roc_data_combined, aes(x = specificity, y = sensitivity, color = Model)) 
                                 "Model D: Covariate + Diet + Chemicals + Meta" = "lightblue"))
 
 ```
+
+
+
 This analysis evaluated two logistic regression models using the Group Lasso method to predict BMI categories, with missing values imputed using the mean. Model C, which included covariates, dietary factors, and chemical exposures, achieved an AUC of 0.643 and an accuracy of 0.705. Model D, which additionally incorporated metabolite data, showed significantly improved performance with an AUC of 0.925 and an accuracy of 0.860. These results indicate that including metabolite data enhances the model's predictive power, demonstrating its value in accurately classifying BMI categories.
+
+
 
 ### Model 2: Random Forest Model
 
 * Hyperparameter Tuning
 * Print Important Var 
 * Train and Test the data using 80/20 split 
-* Redo This 
-
 
 ```{r, message=FALSE}
+#random Forest Model Could Not Run, will figure soon 
 
-
-predictors <- c(covariates_final, phthalates_final, diet_final, metabolites_final)
-y <- as.factor(full_data_with_meta_imputed$hs_bmi_c_cat)
-
-# make that matrix!
-X <- full_data_with_meta_imputed[, predictors]
-
-# Fit the Random Forest model 
-set.seed(2024)  
-rf_model <- randomForest(X, y, importance = TRUE, ntree = 500, maxnodes = 30, nodesize = 10)
-
-# summary
-print(rf_model)
-
-#  var importance
-var_importance <- importance(rf_model)
-
-# var inmportance
-varImpPlot(rf_model)
-
-
-predictions <- predict(rf_model, X, type = "prob")[,2]
-
-#  AUC
-roc_curve <- roc(y, predictions)
-auc_value <- auc(roc_curve)
-print(paste("AUC: ", auc_value))
-
-#  ROC curve
-plot(roc_curve, main = "ROC Curve", col = "blue")
 
 ```
 
