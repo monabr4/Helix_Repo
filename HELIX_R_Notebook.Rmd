@@ -78,6 +78,10 @@ phenotype <- phenotype %>%
                                ifelse(hs_bmi_c_cat %in% c(3, 4), 1, hs_bmi_c_cat)))
 ```
 
+
+
+
+
 # Abstract
 
 This study examines the impact of prenatal environmental exposures on
@@ -99,6 +103,10 @@ can urine metabolomics data improve predictive models of BMI using
 statistical and machine learning tools?
 
 # Introduction
+
+![HELIX: Building the Early-Life Exposome](HELIX.png)
+
+
 
 The relationship between prenatal environmental exposures and childhood
 health outcomes is important, especially in understanding how prenatal
@@ -191,41 +199,71 @@ Additional biochemical markers from urine metabolomics data. Click link below fo
 
 ## Models
 
+<div style="border: 2px solid #cccccc; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+
 ### Model 1: Lasso, Ridge, and Elastic Net on Full Model (excluding urine metabolomics)
 
 Evaluates three regularization regression techniques on the full dataset to identify the best model.
 
 ### Model A: Outcome ~ Covariates
-Uses the most optimized model from Model 1 on covariates only. (Lasso Regresion)
+
+Uses the most optimized model from Model 1 on covariates only. *(Lasso Regression)*
 
 ### Model B: Outcome ~ Covariates + Diet
-Uses the most optimized model from Model 1 on covariates and diet variables. (Lasso Regression)
+
+Uses the most optimized model from Model 1 on covariates and diet variables. *(Lasso Regression)*
 
 ### Model C: Outcome ~ Covariates + Diet + Chemicals
-Examines the effect of covariates, diet, and chemical exposures on BMI. (Group Lasso Regression)
+
+Examines the effect of covariates, diet, and chemical exposures on BMI. *(Group Lasso Regression)*
 
 ### Model D: Outcome ~ Covariates + Diet + Chemicals + Meta
-Expands Model C by including meta variables from urine metabolomics data.(Group Lasso Regression)
+
+Expands Model C by including meta variables from urine metabolomics data. *(Group Lasso Regression)*
 
 ### Model 2: Random Forest
+
 Applied to the best performing dataset with metabolomics data.
+
+</div>
+
+
+
+---
 
 ## Statistical Analysis
 
+<div style="border: 2px solid #cccccc; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+
 ### Primary Models
+
 Two primary models were constructed using Lasso and Group Lasso regression techniques:
 
 - **Lasso Regression**: Used to identify the most relevant predictors by applying L1 regularization.
 - **Group Lasso Regression**: Applied to evaluate the combined effect of grouped variables (covariates, diet, chemicals, and meta variables).
 
+</div>
+
+<div style="border: 2px solid #cccccc; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+
 ### Secondary Model
+
 - **Random Forest**: Used to determine the best machine learning algorithm for the best performing dataset.
 
-### Model Evaluation
+</div>
+
+---
+
+## Model Evaluation
+
+<div style="border: 2px solid #cccccc; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
 
 ### Performance Metrics
+
 - **Area Under the Curve (AUC)** of the ROC curve was used to assess the model's predictive accuracy.
 - **ROC Curve Comparison**: ROC curves were plotted for both models to compare their performance visually.
+
+</div>
 
 # Data
 
@@ -290,7 +328,7 @@ more information regarding the study.
 
 
 
-# Data Description and Codebook
+# Codebook
 
 ```{r}
 codebook_file_path <- "~/Library/CloudStorage/GoogleDrive-bandov@usc.edu/.shortcut-targets-by-id/1oBvDKkpKxGnEoNogWDoXV--27W2spqKh/HELIX_data/HELIX.RData"
@@ -565,6 +603,9 @@ table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_
 
 ## Data Summary Exposures of Outcome: Phenotype (BMI Category)
 
+
+The BMI category is moderately imbalanced, with 70.5% of the data belonging to BMI Category Group 0. Given this moderate imbalance, we have decided to proceed with the model without making any adjustments.
+
 ```{r}
 summary_data <- full_dataset %>%
   count(hs_bmi_c_cat) %>%
@@ -585,7 +626,7 @@ ggplot(data = summary_data, aes(x = as.factor(hs_bmi_c_cat), y = percentage)) +
 
 ## Correlation Matrix
 
-
+Below is a correlation matrix to help decide which model is most appropriate for the data.
 ```{r}
 
 
@@ -617,16 +658,9 @@ correlated variables This method ensures that highly correlated
 variables are handled together, reducing overfitting and maintaining the
 integrity of variable groups.
 
-#Model Building 
-
-<https://stat.ethz.ch/Manuscripts/buhlmann/logistic-grouplasso-final.pdf>
-<https://cran.r-project.org/web/packages/grplasso/grplasso.pdf>
+# Model Building 
 
 ### Model 1: Used Grouped LASSO, RIDGE, ENET Regression on HELIX Data (not including Metabolmics)
-
-* Need to force the covariates in the model
-* Need to look for Variable Importance 
-
 
 
 ```{r, message=FALSE, warning= FALSE}
@@ -731,12 +765,12 @@ auc_enet <- auc(roc_curve_enet)
 predicted_classes_enet <- ifelse(predictions_enet > 0.5, 1, 0)
 accuracy_enet <- mean(predicted_classes_enet == y_test)
 
-print(paste("Lasso - AUC: ", auc_lasso))
-print(paste("Lasso - Accuracy: ", accuracy_lasso))
-print(paste("Ridge - AUC: ", auc_ridge))
-print(paste("Ridge - Accuracy: ", accuracy_ridge))
-print(paste("Elastic Net - AUC: ", auc_enet))
-print(paste("Elastic Net - Accuracy: ", accuracy_enet))
+#print(paste("Lasso - AUC: ", auc_lasso))
+#print(paste("Lasso - Accuracy: ", accuracy_lasso))
+#print(paste("Ridge - AUC: ", auc_ridge))
+#print(paste("Ridge - Accuracy: ", accuracy_ridge))
+#print(paste("Elastic Net - AUC: ", auc_enet))
+#print(paste("Elastic Net - Accuracy: ", accuracy_enet))
 
 roc_data_lasso <- data.frame(
   specificity = 1 - roc_curve_lasso$specificities,
@@ -843,8 +877,8 @@ predicted_classes2 <- ifelse(predictions2 > 0.5, 1, 0)
 accuracy2 <- mean(predicted_classes2 == test_data$hs_bmi_c_cat)
 
 # AUC and Accuracy
-print(paste("Model A: Covariates - AUC:", round(auc1, 3), "Accuracy:", round(accuracy1, 3)))
-print(paste("Model B: Covariates + Diet - AUC:", round(auc2, 3), "Accuracy:", round(accuracy2, 3)))
+#print(paste("Model A: Covariates - AUC:", round(auc1, 3), "Accuracy:", round(accuracy1, 3)))
+#print(paste("Model B: Covariates + Diet - AUC:", round(auc2, 3), "Accuracy:", round(accuracy2, 3)))
 
 # ROC curves data for ggplot2
 roc_data1 <- data.frame(
@@ -923,8 +957,8 @@ predicted_classes_model3 <- ifelse(predictions_model3 > 0.5, 1, 0)
 accuracy_model3 <- mean(predicted_classes_model3 == y)
 
 # Print AUC and accuracy for Model C
-print(paste("AUC for Model C: ", auc_value_model3))
-print(paste("Accuracy for Model C: ", accuracy_model3))
+#print(paste("AUC for Model C: ", auc_value_model3))
+#print(paste("Accuracy for Model C: ", accuracy_model3))
 
 # Variable importance for Model C
 coef_model3 <- coef(best_fit_model3)
@@ -960,8 +994,8 @@ predicted_classes_model4 <- ifelse(predictions_model4 > 0.5, 1, 0)
 accuracy_model4 <- mean(predicted_classes_model4 == y)
 
 # Print AUC and accuracy for Model D
-print(paste("AUC for Model D: ", auc_value_model4))
-print(paste("Accuracy for Model D: ", accuracy_model4))
+#print(paste("AUC for Model D: ", auc_value_model4))
+#print(paste("Accuracy for Model D: ", accuracy_model4))
 
 # Variable importance for Model D
 coef_model4 <- coef(best_fit_model4)
@@ -1018,6 +1052,7 @@ This analysis evaluated two logistic regression models using the Group Lasso met
 * Hyperparameter Tuning
 * Print Important Var 
 * Train and Test the data using 80/20 split 
+* AUC 
 
 ```{r, message=FALSE}
 #random Forest Model Could Not Run, will figure soon 
@@ -1027,5 +1062,13 @@ This analysis evaluated two logistic regression models using the Group Lasso met
 
 
 
+### Model 3: GBM? POTENTIALLY?
+AUC
 
+
+### Conclusion: Comparison of All Models 
+
+Reference:
+<https://stat.ethz.ch/Manuscripts/buhlmann/logistic-grouplasso-final.pdf>
+<https://cran.r-project.org/web/packages/grplasso/grplasso.pdf>
 
