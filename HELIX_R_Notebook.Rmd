@@ -1,6 +1,6 @@
 ---
 title: "Examining the Impact of Environmental Exposures on Body Mass Index (BMI)"
-author: "Author: Mona Bandov"
+author: "Mona Bandov"
 date: "Published: `r format(Sys.time(), '%d %B %Y')`"
 output:
   html_document:
@@ -8,14 +8,46 @@ output:
     toc_float: true
     df_print: paged
     code_folding: hide
+    theme: cosmo
+    highlight: tango
   pdf_document:
     toc: true
+    toc_depth: 2
+    highlight: tango
+    latex_engine: xelatex
+    includes:
+      in_header: preamble.tex
 editor_options: 
   markdown: 
     wrap: 72
 ---
 
 ```{css, echo=FALSE}
+body {
+  font-family: 'Arial', sans-serif;
+  line-height: 1.6;
+  color: #333333;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Georgia', serif;
+  color: #2a3f54;
+}
+
+.section-box {
+  border: 2px solid #cccccc;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 20px;
+  background-color: #f9f9f9;
+}
+
+code {
+  background-color: #f4f4f4;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
 pre {
   max-height: 200px;
   overflow-y: auto;
