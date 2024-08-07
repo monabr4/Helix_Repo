@@ -78,7 +78,12 @@ library(rpart.plot)
 library(fastshap)
 library(car)
 library(lmtest)
-
+library(caret)
+library(randomForest)
+library(dplyr)
+library(foreach)
+library(doParallel)
+library(Matrix)
 
 dplyr::select
 
@@ -111,24 +116,28 @@ phenotype <- phenotype %>%
 ```
 
 
+```{r}
 
+#write.csv(full_data_with_meta_imputed_factored, "full_data_with_imputed_factored.csv", row.names = FALSE)
+```
+
+
+```{r, message=FALSE}
+full_data_with_meta_imputed <- read_csv("full_data_with_meta_imputed.csv")
+full_data_with_meta_imputed_factored<- read_csv("full_data_with_imputed_factored.csv")
+
+```
 
 
 # Abstract
 
-This study examines the impact of prenatal environmental exposures on
-childhood body mass index (BMI) in children aged 6 to 11 years. Using
-data from the HELIX study, we investigate the influence of prenatal
-dietary intake and phthalate exposure concentrations on BMI, while
-controlling for child age at examinations and gestational age at birth.
-Lasso and Group Lasso regression models to assess the
-predictive power of these prenatal exposures. 
+This study examines the impact of prenatal environmental exposures on childhood body mass index (BMI) in children aged 6 to 11 years. Using data from the HELIX study, the influence of prenatal dietary intake, phthalate exposure concentrations, metabolomic urine data on BMI is investigated, while controlling for age, sex, and cohort. LASSO Regularization, Random Forest and Gradient Boosting Machines  models were used to assess the predictive power of these prenatal exposures.
 
-[PUT THE FINAL RESULTS HERE]
+The LASSO performed better for the model with metabolimic data, followed by GBM and then random forest due to the nature of the data set.
 
 # Hypothesis
 
-How do prenatal dietary intake and concentrations of prenatal phthalate
+How do prenatal dietary intake and concentrations of prenatal phthalates
 exposures influence body mass index (BMI) for children aged 6 to 11
 years, while controlling for child age, sex, and cohort? Additionally,
 can urine metabolomics data improve predictive models of BMI using
@@ -187,12 +196,15 @@ conditions.
 Missing values were imputed with the mean for relevant columns.
 
 ### Data Splitting
-To  minimize the risk of overfitting, the dataset was split using a 10-fold cross-validation (CV=10) approach.
+
+A hold out set was implemented to train and test the data.
 
 ## Variables 
 
 ### Outcome Variable
 - Body Mass Index (BMI) categorized (`hs_bmi_c_cat`)
+  - 0: Underweight and Normal Weight 
+  - 1: Overweight and Obese 
 
 ### Covariates
 - `h_cohort`
@@ -229,63 +241,61 @@ To  minimize the risk of overfitting, the dataset was split using a 10-fold cros
 Additional biochemical markers from urine metabolomics data. Click link below for more information:
 <https://www.projecthelix.eu/files/HELIX_urine_metabol_DataSummary.pdf>\
 
-## Models
-
-<div style="border: 2px solid #cccccc; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
-
-### Model 1: Lasso, Ridge, and Elastic Net on Full Model (excluding urine metabolomics)
-
-Evaluates three regularization regression techniques on the full dataset to identify the best model.
-
-### Model 2A: Outcome ~ Covariates
-
-Uses the most optimized model from Model 1 on covariates only. *(Lasso Regression)*
-
-### Model 2B: Outcome ~ Covariates + Diet
-
-Uses the most optimized model from Model 1 on covariates and diet variables. *(Lasso Regression)*
-
-### Model 2C: Outcome ~ Covariates + Diet + Chemicals
-
-Examines the effect of covariates, diet, and chemical exposures on BMI. *(Group Lasso Regression)*
-
-### Model 2D: Outcome ~ Covariates + Diet + Chemicals + Meta
-
-Expands Model C by including meta variables from urine metabolomics data. *(Group Lasso Regression)*
-
-### Model 3A Random Forest
-
-Applied Random Forest (RF)to the best performing dataset with metabolomics data.
-
-
-### Model 3B: GBM
-
-Applied to Gradient Boosting Machine (GBM) to the best performing dataset with metabolomics data.
-</div>
-
 
 
 ---
 
-## Statistical Analysis
+## Statistical Analysis and Models 
 
 <div style="border: 2px solid #cccccc; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
 
 ### Primary Models
 
-Two primary models were constructed using Lasso and Group Lasso regression techniques:
+Model 1 (A-D) were constructed using Lasso regression techniques to see the effect of added predictors:
 
 - **Lasso Regression**: Used to identify the most relevant predictors by applying L1 regularization.
-- **Group Lasso Regression**: Applied to evaluate the combined effect of grouped variables (covariates, diet, chemicals, and meta variables).
+
+
+### Model 1A: Outcome ~ Covariates
+
+Uses the most optimized model from Model 1 on covariates only. *(Lasso Regression)*
+
+### Model 1B: Outcome ~ Covariates + Diet
+
+Uses the most optimized model from Model 1 on covariates and diet variables. 
+### Model 1C: Outcome ~ Covariates + Diet + Chemicals 
+
+Examines the effect of covariates, diet, and chemical exposures on BMI. 
+
+### Model 1D: Outcome ~ Covariates + Diet + Chemicals + Meta
+
+Expands Model 1 by including meta variables from urine metabolomics data. 
+
+
 
 </div>
 
 <div style="border: 2px solid #cccccc; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
 
-### Secondary Model
+### Secondary Model (Used on the best model from Model 1)
 
-- **Random Forest**: Used to determine the best machine learning algorithm for the best performing dataset.
-- **Grafient Boosting Machine (GBM)**: Used to determine the bet machine learning algorthim for the best performing data set.
+- **Lasso Regression**: Used to identify the most relevant predictors by applying L1 regularization.
+- **Random Forest**: Used to determine the best machine learning algorithm on the best performing dataset.
+- **Gradient Boosting Machine (GBM)**: Used to determine the bet machine learning algorthim on the best performing dataset.
+
+### Model 2A: LASSO on best performing model in Model 1
+
+Applied GLASSO to the best performing dataset with metabolmics data.
+
+### Model 2B Random Forest best performing model in Model 1
+
+Applied Random Forest (RF)to the best performing dataset in Model 1. 
+
+
+### Model 2C: Gradient Boosting Machine (GBM) on best performing model in Model 1
+
+Applied to Gradient Boosting Machine (GBM) to the best performing dataset in Model 1.
+
 
 </div>
 
@@ -297,15 +307,16 @@ Two primary models were constructed using Lasso and Group Lasso regression techn
 
 ### Performance Metrics
 
-- **Area Under the Curve (AUC)** of the ROC curve was used to assess the model's predictive accuracy.
+- **Area Under the Curve (AUC)**: ROC curve was used to assess the model's predictive accuracy.
 - **ROC Curve Comparison**: ROC curves were plotted for both models to compare their performance visually.
+- **Accuracy**: The proportion of true results (both true positives and true negatives) among the total number of cases examined.
 
 </div>
 
 # Data
 
 The complexity of exposure to environmental contaminants has increased
-becuase evolving environmental and lifestyle factors. The exposome
+because evolving environmental and lifestyle factors. The exposome
 includes all environmental (non-genetic) exposures an individual
 encounters from conception through old age. The HELIX (Human Early-Life
 Exposome) project focuses on the early-life exposome, which integrates
@@ -452,7 +463,7 @@ summarytools::view(dfSummary(covariates[,names(covariates) %in% selectCovariates
 
 # Data Exploration
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 # Combining covariates with phenotype (Full Data)
 # Lifestyle variables
 filtered_codebook_lifestyles <- codebook %>%
@@ -495,7 +506,7 @@ exposome_phenotype_covariates <- exposome_phenotype_covariates %>%
 ```
 
 
-```{r}
+```{r,warning=FALSE, message=FALSE}
 #Creating Full and Important Data
 #Initial Model (Model 1)
 
@@ -525,7 +536,7 @@ full_dataset$ID <- seq_len(nrow(full_dataset))
 important_dataset$ID <- seq_len(nrow(important_dataset))
 ```
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 #Merged Data + Meta:
 transposed_data <- t(metabol_serum.d)
@@ -541,9 +552,18 @@ var_imp_data_with_meta <- merge(important_dataset, transposed_data, by = "ID", a
 
 ```
 
+```{r, warning=FALSE, message=FALSE}
+
+library(magrittr)
+full_data_with_meta_imputed_factored <- full_data_with_meta %>%mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+
+
+```
+
+
 ## Table by Cohort:
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 exposome_phenotype_covariates <- exposome_phenotype_covariates %>%
   mutate(
     e3_sex_None = factor(e3_sex_None),
@@ -614,7 +634,7 @@ table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_
 
 ## Table by Sex:
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 # Stratified by sex
 table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter +
@@ -630,22 +650,17 @@ table1(~  hs_child_age_None  + e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_
 ```
 
 
-
-
 ## Data Summary Exposures of Outcome: Phenotype (BMI Category)
 
 Since the original data contained 4 BMI categories, the distribution of those categories were not normal or representative of the population. Aggregation of the BMI variables were performed to ensure that the model is more reliable. 
 
-After re-categorization, BMI category is moderately imbalanced. Given this moderate imbalance, we have decided to proceed with the model without making any adjustments. 
-
-
-```{r}
+```{r, warning=FALSE, message=FALSE}
 summary_data <- full_dataset %>%
   count(hs_bmi_c_cat) %>%
   mutate(percentage = n / sum(n) * 100)
 
 ggplot(data = summary_data, aes(x = as.factor(hs_bmi_c_cat), y = percentage)) +
-  geom_bar(stat = "identity", fill = c("lightblue", "lightgreen")) +
+  geom_bar(stat = "identity", fill = c("red", "blue")) +
   geom_text(aes(label = paste0(round(percentage, 1), "%")), 
             vjust = -0.5, size = 4) +
   labs(title = "Distribution of BMI Categories",
@@ -657,18 +672,26 @@ ggplot(data = summary_data, aes(x = as.factor(hs_bmi_c_cat), y = percentage)) +
 
 ```
 
+After re-categorization, BMI category is moderately imbalanced. Given this moderate imbalance, we have decided to proceed with the model without making any adjustments. 
+
+
 ## Correlation Matrix
 
-Below is a correlation matrix to help decide which model is most appropriate for the data.
-```{r}
-
-
+Below is a correlation matrix to help decide which model is most appropriate for the data.This matric is used to assess presence of multicollinearity. 
+```{r, warning=FALSE, message=FALSE}
 numeric_vars <- exposome_phenotype_covariates %>%
   dplyr::select(where(is.numeric))
 
 cor_matrix <- cor(numeric_vars, use = "complete.obs")
 corrplot(cor_matrix, method = "color", type = "upper", tl.col = "black", tl.srt = 60, tl.cex = 0.8)
 
+```
+
+Despite considering grouped LASSO logistic regression to handle multicollinearity, regular LASSO regression was used for model building. To address the issue of multicollinearity, the variable `hs_mehhp_madj_Log2` was removed from the model.
+
+The correlation analysis revealed the following highly correlated pairs (70% threshold):
+
+```{r, message=FALSE, warning=FALSE}
 find_highly_correlated <- function(cor_matrix, threshold = 0.8) {
   cor_matrix[lower.tri(cor_matrix, diag = TRUE)] <- NA  
   cor_matrix <- as.data.frame(as.table(cor_matrix)) 
@@ -677,745 +700,464 @@ find_highly_correlated <- function(cor_matrix, threshold = 0.8) {
   cor_matrix <- cor_matrix %>% filter(abs(Freq) > threshold)  
   return(cor_matrix)
 }
-
-highly_correlated_pairs <- find_highly_correlated(cor_matrix, threshold = 0.60)
+highly_correlated_pairs <- find_highly_correlated(cor_matrix, threshold = 0.70)
+highly_correlated_pairs
 
 ```
 
-The heatmap shows significant multicollinearity among several phthalate
-variables. Traditional regression models, such as lasso
-regression, struggle with such correlations, leading to unreliable
-estimates. Grouped lasso/ridge/e-net logistic regression addresses this by selecting
-correlated variables This method ensures that highly correlated
-variables are handled together. The best performing model will used for future model building.
+Among these findings, `hs_mehhp_madj_Log2` was found to have a high correlation with `hs_meohp_madj_Log2`, with a correlation coefficient of 0.8076375. Given this high correlation, `hs_mehhp_madj_Log2` was removed from the model to address multicollinearity. 
+
+
+```{r, message=FALSE, warning=FALSE}
+#Finalize the data set 
+outcome <- "hs_bmi_c_cat"
+covariates_final <- c("h_cohort", "e3_sex_None") # Did not include age
+
+diet_final <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", 
+                "h_fastfood_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
+                "h_meat_preg_Ter", "h_pamod_t3_None", "h_fish_preg_Ter", 
+                "h_legume_preg_Ter", "h_pavig_t3_None", "h_veg_preg_Ter")
+factorize_columns <- c(covariates_final, diet_final)
+full_data_with_meta_imputed_factored <- full_data_with_meta_imputed %>%
+  mutate(across(all_of(factorize_columns), as.factor))
+```
 
 # Model Building 
 
-### Model 1: Used Grouped LASSO, RIDGE, ENET Regression on HELIX Data (not including Metabolmics)
+### Primary Models:Model Building (1A,1B,1C,1D)
 
-Model 1 applies advanced regression techniques—Grouped LASSO, Grouped Ridge, and Grouped Elastic Net—to the HELIX dataset, which does not include metabolomics data. These methods address the issue of multicollinearity among highly correlated variables, such as phthalates, by selecting or regularizing groups of correlated predictors together. This approach ensures more reliable estimates and reduces overfitting. The best performing model among Grouped LASSO, Grouped Ridge, and Grouped Elastic Net will be selected for future model building.
+LASSO Regression model will be used to compare the performance of different models predicting BMI cat. LASSO regression, known for its ability to perform both variable selection and regularization, is used here to determine the impact of varying predictor sets on model accuracy. The goal is to identify which combination of predictor variables yields the best model performance. AUC and important variables will be highlighted.
+
+* *Model 1A*: Outcome ~ Covariates 
+* *Model 1B*: Outcomes ~ Covariates + Diet
+* *Model 1C*: Outcomes ~ Covariates + Diet + Phthalates 
+* *Model 1D*: Outcomes ~ Covariates + Diet + Phthalates + Metabolomic Data
 
 
-```{r, message=FALSE, warning= FALSE}
-# Grouped Variables
+#### ROC Curves for Model 1:
+
+In this section, ROC (Receiver Operating Characteristic) curves will evaluate the performance of four different models. ROC curves are used to assess the ability of a classification model to distinguish between different BMI categories.
+
+
+```{r, message=FALSE, warning=FALSE}
+
+
 outcome <- "hs_bmi_c_cat"
-
-covariates_final <- c("h_cohort", "e3_sex_None", "hs_child_age_None") 
+covariates_final <- c("h_cohort", "e3_sex_None", "hs_child_age_None")
 
 phthalates_final <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mep_madj_Log2", 
                       "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_oxominp_madj_Log2", 
-                      "hs_mehhp_madj_Log2", "hs_meohp_madj_Log2", "hs_ohminp_madj_Log2", 
-                      "hs_mehp_madj_Log2")
+                      "hs_meohp_madj_Log2", "hs_ohminp_madj_Log2", 
+                      "hs_mehp_madj_Log2") # removed the one variable hs_mehhp_madj_Log2
 
 diet_final <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", 
                 "h_fastfood_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
                 "h_meat_preg_Ter", "h_pamod_t3_None", "h_fish_preg_Ter", 
                 "h_legume_preg_Ter", "h_pavig_t3_None", "h_veg_preg_Ter")
 
-predictors_final <- c(covariates_final, phthalates_final, diet_final)
+meta_final <- grep("^metab_", names(full_data_with_meta_imputed_factored), value = TRUE)
 
-# Data Prep
-x <- model.matrix(~ . - 1, data = full_dataset[, predictors_final])
-y <- as.numeric(as.character(full_dataset[[outcome]]))
+# predictor sets
+predictor_sets <- list(
+  covariate = covariates_final,
+  covariates_diet = c(covariates_final, diet_final),
+  covariates_diet_phthalates = c(covariates_final, diet_final, phthalates_final),
+  covariates_diet_phthalates_meta = c(covariates_final, diet_final, phthalates_final, meta_final)
+)
 
-# groups
-group_ids <- c(rep(1, length(covariates_final)), 
-               rep(2, length(phthalates_final)), 
-               rep(3, length(diet_final)))
-
-
-column_names <- colnames(x)
-adjusted_groups <- rep(NA, length(column_names))
-
-for (i in seq_along(predictors_final)) {
-  predictor <- predictors_final[i]
-  group_id <- group_ids[i]
-  matched_cols <- grep(paste0("^", predictor), column_names)
-  adjusted_groups[matched_cols] <- group_id
+# Function 
+model_performance <- function(predictors) {
+  subset_data <- full_data_with_meta_imputed_factored[, c(predictors, outcome)]
+  subset_data <- na.omit(subset_data)
+  
+  subset_data[[outcome]] <- as.factor(subset_data[[outcome]])
+  
+  # Hold out set
+  set.seed(999)
+  trainIndex <- createDataPartition(subset_data[[outcome]], p = .8, list = FALSE)
+  train_data <- subset_data[trainIndex, ]
+  test_data <- subset_data[-trainIndex, ]
+  
+  x_train <- model.matrix(as.formula(paste(outcome, "~ .")), data = train_data)[, -1]
+  y_train <- train_data[[outcome]]
+  x_test <- model.matrix(as.formula(paste(outcome, "~ .")), data = test_data)[, -1]
+  y_test <- test_data[[outcome]]
+  
+  # Train
+  covariates_train <- model.matrix(as.formula(paste(outcome, "~", paste(covariates_final, collapse = "+"))), data = train_data)[, -1]
+  
+  # Test
+  covariates_test <- model.matrix(as.formula(paste(outcome, "~", paste(covariates_final, collapse = "+"))), data = test_data)[, -1]
+  
+  x_train <- cbind(covariates_train, x_train[, !colnames(x_train) %in% colnames(covariates_train)])
+  x_test <- cbind(covariates_test, x_test[, !colnames(x_test) %in% colnames(covariates_test)])
+  
+  # Fit cv and alpha = 1 is LASSO
+  cv_fit <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 1)
+  best_lambda <- cv_fit$lambda.min
+  final_model <- glmnet(x_train, y_train, family = "binomial", alpha = 1, lambda = best_lambda)
+  
+  # Predict
+  probabilities <- predict(final_model, s = best_lambda, newx = x_test, type = "response")
+  
+  roc_curve <- roc(y_test, as.numeric(probabilities))
+  auc_value <- auc(roc_curve)
+  coefficients <- coef(final_model, s = best_lambda)[-1, ]
+  
+  list(roc_curve = roc_curve, auc_value = auc_value, coefficients = coefficients)
 }
 
-# Penalization factors (Keep covariates in the model)
-penalty_factor <- ifelse(adjusted_groups == 1, 0, 1)
+# Look at all models
+results <- lapply(predictor_sets, model_performance)
 
-# train-test split (80/20) (TRIED CV-10 folds, but ran into problems)
-set.seed(2024)  
-train_indices <- createDataPartition(y, p = 0.8, list = FALSE)
-x_train <- x[train_indices, ]
+# ROC Curves
+plot(results[[1]]$roc_curve, col = "blue", main = "ROC Curves for Model 1(A-D)", lwd = 2)
+colors <- c("green", "red", "purple")
+for (i in 2:length(results)) {
+  lines(results[[i]]$roc_curve, col = colors[i-1], lwd = 2)
+}
+
+
+legend("bottomright", inset = c(-0.01, 0), legend = c(
+  paste("Model 1A: Covariate (AUC =", round(results[[1]]$auc_value, 2), ")"), 
+  paste("Model 1B: Covariates and Diet (AUC =", round(results[[2]]$auc_value, 2), ")"), 
+  paste("Model 1C: Covariates, Diet, and Phthalates (AUC =", round(results[[3]]$auc_value, 2), ")"), 
+  paste("Model 1D: Covariates, Diet, Phthalates, and Meta (AUC =", round(results[[4]]$auc_value, 2), ")")
+), col = c("blue", "green", "red", "purple"), lwd = 1, cex = 0.7, xpd = TRUE)
+
+```
+
+
+The evaluation of model performance using ROC curves and AUC values showed a significant differences in predictive accuracy across the models. Model 1A, which only included covariates, had an AUC of 0.59, indicating limited discriminatory power. Adding dietary variables in Model 1B improved the AUC slightly to 0.61. Model 1C, which included both dietary variables and phthalates, showed a slight increase in AUC to 0.62. However, the most substantial improvement was observed in Model 1D, which added metabolomic data in addition to covariates, diet, and phthalates, achieved an AUC of 0.84. Adding metabolmic data significantly improved the predictive performance in distinguishing between the two BMI categories.
+
+
+
+#### Variable Importance for Model 1:
+
+Variable importance (Top 10) quantifies how much each predictor contributes to the performance of a predictive model. It helps identify which variables have the most significant impact on the model’s predictions. Here’s a brief overview of which variables are the most influential when building the model: 
+
+```{r, message=FALSE, warning=FALSE}
+par(mfrow = c(2, 2)) 
+model_names <- c("Model 1A", "Model 1B", "Model 1C", "Model 1D")
+
+for (i in 1:length(results)) {
+  coeffs <- results[[i]]$coefficients
+  top_coeffs <- coeffs[order(abs(coeffs), decreasing = TRUE)][1:10]
+  colors <- ifelse(top_coeffs > 0, "blue", "red")
+  barplot(top_coeffs, las = 2, main = paste("Variable Importance -", model_names[i]), cex.names = 0.48, col = colors)
+}
+
+```
+
+
+The variable importance analysis across four models (1A, 1B, 1C, and 1D) shows how different variables are influential in predicting outcomes. In Model 1A, cohort variables such as `h_cohort3` and `h_cohort6` are the most influential, meaning that cohort has the biggest influence on the model's predictions. Moving to Model 1B, while cohort variables like `h_cohort5` and `h_cohort3` remain important, dietary factors including `h_meal_preg_Tc63` and `h_cereal_preg_Tc63` begin to show substantial influence, meaning that dietary habits during pregnancy significantly impact BMI.
+
+Model 1C presents a more complex interaction, where cohort variables continue to be influential, but dietary and phthalate variables such as `h_meal_preg_Tc63` and `e3_agepreg3y_None2` also important. The most infuential change is observed in Model 1D, where the addition of metabolomic data dramatically shifts the variable importance landscape. Metabolomic variables like `metab_161` and `metab_160` show the highest influence, far surpassing the importance of cohorts and other variables, highlighting the dominant predictive power of metabolomic data.
+
+Overall, the analysis reveals that while cohort and dietary factors are significant, the inclusion of metabolomic data provides a much stronger predictive power. This means that metabolomic factors are crucial for understanding how BMI is affected. Moving forward, incorporating metabolomic data and exploring other machine learning algorithms will be help refine the predictions and gain deeper understanding into the  effect of variables on BMI in children ages 6-11.
+
+### Secondary Models: Advanced Machine Learning Modeling (2A,2B,2C)
+
+In this section, the machine learning models will be refined to assess the best-performing model from Model 1. Based on the performance metrics, Model 1D, which includes metabolic data, showed the highest AUC result. LASSO, Random Forest, and GBM will be evaluated to see which model performs better when applied to the dataset from Model 1D. To  minimize the risk of overfitting, hyperparamters were tuned using the 10-fold cross-validation (CV=10) approach.
+
+
+```{r, message=FALSE, warning=FALSE}
+
+data <- full_data_with_meta_imputed_factored
+outcome <- "hs_bmi_c_cat"
+covariates_final <- c("h_cohort", "e3_sex_None")
+phthalates_final <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mep_madj_Log2", 
+                      "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_oxominp_madj_Log2", 
+                      "hs_mehhp_madj_Log2", "hs_meohp_madj_Log2", "hs_ohminp_madj_Log2", 
+                      "hs_mehp_madj_Log2")
+diet_final <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", 
+                "h_fastfood_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
+                "h_meat_preg_Ter", "h_pamod_t3_None", "h_fish_preg_Ter", 
+                "h_legume_preg_Ter", "h_pavig_t3_None", "h_veg_preg_Ter")
+meta_final <- grep("^metab_", names(data), value = TRUE)
+
+
+all_vars <- c(covariates_final, phthalates_final, diet_final, meta_final)
+X <- as.matrix(data[all_vars])
+y <- data[[outcome]]  # outcome variable "hs_bmi_c_cat"
+
+# Split training and testing sets
+set.seed(999)
+train_indices <- sample(1:nrow(X), size = 0.8 * nrow(X))
+X_train <- X[train_indices, ]
+X_test <- X[-train_indices, ]
 y_train <- y[train_indices]
-x_test <- x[-train_indices, ]
 y_test <- y[-train_indices]
 
-###################
-####LASSO##########
-###################
+# Fit the LASSO model using cross-validation
+cv_fit <- cv.glmnet(X_train, y_train, alpha = 1, family = "binomial")
 
-# Train Grouped Lasso model
-grouped_lasso <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", penalty = "grLasso", penalty.factor = penalty_factor, lambda.min.ratio = 1e-5)
+# Best lambda value
+best_lambda <- cv_fit$lambda.min
+#print(paste("Best lambda:", best_lambda))
 
-# Predict on test set for Lasso
-predictions_lasso <- predict(grouped_lasso, x_test, type = "response")
+# Fit the final model on the entire training data
+lasso_model <- glmnet(X_train, y_train, alpha = 1, lambda = best_lambda, family = "binomial")
 
-# AUC for Lasso
-roc_curve_lasso <- roc(y_test, predictions_lasso)
-auc_lasso <- auc(roc_curve_lasso)
+# Predict on the test data
+y_pred_prob_lasso <- predict(lasso_model, s = best_lambda, newx = X_test, type = "response")
+y_pred_lasso <- ifelse(y_pred_prob_lasso > 0.5, 1, 0)
 
-# Accuracy for Lasso
-predicted_classes_lasso <- ifelse(predictions_lasso > 0.5, 1, 0)
-accuracy_lasso <- mean(predicted_classes_lasso == y_test)
+# Calculate ROC and AUC for LASSO
+roc_obj_lasso <- roc(y_test, y_pred_prob_lasso)
+auc_value_lasso <- auc(roc_obj_lasso)
+#print(paste("LASSO AUC:", auc_value_lasso))
 
-###################
-###RIDGE###########
-###################
-# Train Grouped Ridge model
-grouped_ridge <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", penalty = "gel", penalty.factor = penalty_factor, lambda.min.ratio = 1e-5)
+# LASSO accuracy
+accuracy_lasso <- mean(y_pred_lasso == y_test)
+#print(paste("LASSO Accuracy:", accuracy_lasso))
 
-# Predict on test set for Ridge
-predictions_ridge <- predict(grouped_ridge, x_test, type = "response")
+data$hs_bmi_c_cat <- as.factor(data$hs_bmi_c_cat)
 
-# AUC for Ridge
-roc_curve_ridge <- roc(y_test, predictions_ridge)
-auc_ridge <- auc(roc_curve_ridge)
 
-# Accuracy for Ridge
-predicted_classes_ridge <- ifelse(predictions_ridge > 0.5, 1, 0)
-accuracy_ridge <- mean(predicted_classes_ridge == y_test)
+set.seed(999) 
+trainIndex <- createDataPartition(data$hs_bmi_c_cat, p = .8, list = FALSE, times = 1)
+dataTrain <- data[trainIndex, ]
+dataTest <- data[-trainIndex, ]
 
-##################
-###ENET###########
-##################
+# training control
+train_control <- trainControl(method = "cv", number = 10, search = "grid")
 
-# Train Elastic Net model
-cv_glmnet_model <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 0.5, lambda = 10^seq(-4, 4, length.out = 100), penalty.factor = penalty_factor)
+#  parameter grid for Random Forest
+rf_tune_grid <- expand.grid(mtry = c(2, 4, 6, 8, 10))
 
-# Predict on test set for Elastic Net
-predictions_enet <- predict(cv_glmnet_model, s = "lambda.min", newx = x_test, type = "response")
+# Train the Random Forest model with hp tuning
+set.seed(999)
+rf_model <- train(hs_bmi_c_cat ~ ., data = dataTrain, method = "rf", trControl = train_control, tuneGrid = rf_tune_grid)
 
-# AUC for Elastic Net
-roc_curve_enet <- roc(y_test, predictions_enet)
-auc_enet <- auc(roc_curve_enet)
 
-# Accuracy for Elastic Net
-predicted_classes_enet <- ifelse(predictions_enet > 0.5, 1, 0)
-accuracy_enet <- mean(predicted_classes_enet == y_test)
+#print(rf_model$bestTune)
 
-#print(paste("Lasso - AUC: ", auc_lasso))
-#print(paste("Ridge - AUC: ", auc_ridge))
-#print(paste("Elastic Net - AUC: ", auc_enet))
+# Predictions with Random Forest on the test set
+rf_prob_predictions <- predict(rf_model, newdata = dataTest, type = "prob")[, 2]
+rf_predictions <- predict(rf_model, newdata = dataTest)
 
+# Evaluate the Random Forest model with confusion matrix
+rf_conf_matrix <- confusionMatrix(rf_predictions, dataTest$hs_bmi_c_cat)
+#print(rf_conf_matrix)
+
+# ROC and AUC for Random Forest
+rf_roc_curve <- roc(dataTest$hs_bmi_c_cat, rf_prob_predictions)
+rf_auc_value <- auc(rf_roc_curve)
+#print(paste("Random Forest AUC:", rf_auc_value))
+
+# Random Forest accuracy
+accuracy_rf <- rf_conf_matrix$overall['Accuracy']
+#print(paste("Random Forest Accuracy:", accuracy_rf))
+
+# GRID SEARCH
+gbm_tune_grid <- expand.grid(interaction.depth = c(1, 3, 5), n.trees = c(50, 100, 150), shrinkage = c(0.01, 0.1), n.minobsinnode = 10)
+
+# Train the GBM model with hyperparameter tuning
+set.seed(999)
+gbm_model <- train(hs_bmi_c_cat ~ ., data = dataTrain, method = "gbm", trControl = train_control, tuneGrid = gbm_tune_grid, verbose = FALSE)
+
+
+#print(gbm_model$bestTune)
+
+# Make predictions with GBM on the test set
+gbm_prob_predictions <- predict(gbm_model, newdata = dataTest, type = "prob")[, 2]
+gbm_predictions <- predict(gbm_model, newdata = dataTest)
+
+# Evaluate the GBM model with confusion matrix
+gbm_conf_matrix <- confusionMatrix(gbm_predictions, dataTest$hs_bmi_c_cat)
+#print(gbm_conf_matrix)
+
+# ROC and AUC for GBM
+gbm_roc_curve <- roc(dataTest$hs_bmi_c_cat, gbm_prob_predictions)
+gbm_auc_value <- auc(gbm_roc_curve)
+#print(paste("GBM AUC:", gbm_auc_value))
+
+# GBM accuracy
+accuracy_gbm <- gbm_conf_matrix$overall['Accuracy']
+#print(paste("GBM Accuracy:", accuracy_gbm))
+
+# Combine ROC curves 
 roc_data_lasso <- data.frame(
-  specificity = 1 - roc_curve_lasso$specificities,
-  sensitivity = roc_curve_lasso$sensitivities,
-  Model = "Lasso"
+  tpr = roc_obj_lasso$sensitivities,
+  fpr = 1 - roc_obj_lasso$specificities,
+  model = paste("LASSO (AUC =", round(auc_value_lasso, 2), ")")
 )
 
-roc_data_ridge <- data.frame(
-  specificity = 1 - roc_curve_ridge$specificities,
-  sensitivity = roc_curve_ridge$sensitivities,
-  Model = "Ridge"
-)
-
-roc_data_enet <- data.frame(
-  specificity = 1 - roc_curve_enet$specificities,
-  sensitivity = roc_curve_enet$sensitivities,
-  Model = "Elastic Net"
-)
-
-roc_data_combined <- rbind(roc_data_lasso, roc_data_ridge, roc_data_enet)
-
-# ROC curve visualization
-ggplot(roc_data_combined, aes(x = specificity, y = sensitivity, color = Model)) +
-  geom_line(size = 1) +
-  geom_abline(linetype = "dashed", color = "red") +
-  labs(title = "ROC Curves for Lasso, Ridge, and Elastic Net",
-       x = "1 - Specificity",
-       y = "Sensitivity") +
-  theme_minimal()
-
-# Train Grouped Lasso model
-grouped_lasso <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", penalty = "grLasso", penalty.factor = penalty_factor, lambda.min.ratio = 1e-5)
-
-# Important variables
-coef_lasso <- coef(grouped_lasso, s = "lambda.min")
-
-# Non-zero coefficients and remove intercept
-important_vars <- coef_lasso[coef_lasso != 0]
-important_vars <- important_vars[names(important_vars) != "(Intercept)"]
-
-# Important variables
-important_vars_df <- data.frame(
-  Variable = names(important_vars),
-  Coefficient = as.numeric(important_vars)
-)
-
-
-```
-
-
-
-In this analysis, three different regression models (Grouped Lasso, Group Ridge, and Group Elastic Net) were applied to the HELIX dataset, excluding metabolomics data. Covariates were forced into the models.
-
-The models were trained using 10-fold cross-validation. The Lasso model achieved an Area Under the Curve (AUC) of 0.588. The Ridge model yielded an AUC of 0.584. The Elastic Net model resulted in an AUC of 0.585. Overall, the Lasso model performed slightly better in terms of AUC compared to Ridge and Elastic Net.
-
-Due to its performance, both Grouped Lasso and regular Lasso will be considered for Model 2A, Model 2B, Model 2C, and Model 2D in future analyses.
-
-
-
-```{r}
-# Train Grouped Lasso model
-grouped_lasso <- cv.grpreg(x_train, y_train, group = adjusted_groups, family = "binomial", 
-                           penalty = "grLasso", penalty.factor = penalty_factor, 
-                           lambda.min.ratio = 1e-5)
-
-
-coef_lasso <- coef(grouped_lasso, s = "lambda.min")
-
-# Remove intercpt and filter non-zero coefficients
-important_vars <- coef_lasso[coef_lasso != 0]
-important_vars <- important_vars[names(important_vars) != "(Intercept)"]
-
-
-important_vars_df <- data.frame(
-  Variable = names(important_vars),
-  Coefficient = as.numeric(important_vars)
-)
-
-
-
-ggplot(important_vars_df, aes(x = reorder(Variable, Coefficient), y = Coefficient)) +
-  geom_bar(stat = "identity", fill = "steelblue") +
-  coord_flip() +
-  labs(title = "Important Variables from Grouped Lasso Regression",
-       x = "Variables",
-       y = "Coefficient") +
-  theme_minimal()
-
-```
-
-
-The bar plot above visualizes the coefficients of important variables identified by the Grouped Lasso Regression model applied to the HELIX dataset (excluding metabolomics data). This analysis provides insights into which covariates, phthalates, and dietary factors have significant impacts on the outcome variable. The plot shows:
-
-Positive Associations:
-
-h_cohort3, h_cohort6, h_cohort4: These variables have the strongest positive coefficients with the outcome varaible hs_bmi_category
-h_pamod_t3_NoneVery Often, h_pamod_t3_NoneSometimes, h_fastfood_preg_Ter[0.83,1.79], h_meat_preg_Ter[6.5,10.4]: These dietary variables also show positive associations.
-
-Negative Associations:
-h_fruit_preg_Ter[0.6,1.82], h_fruit_preg_Ter[2.3,Inf], h_veg_preg_Ter[8.6,15.6]: These dietary variables exhibit the strongest negative coefficients with the outcome variable hs_bmi_c_cat.
-h_cereal_preg_Ter[7.8,21.2], h_cereal_preg_Ter[2.3,Inf], h_veg_preg_Ter[16.5,Inf]: Other dietary variables that have negative associations.
-
-Moderate Associations:
-e3_sex_Nonefemale, h_folic_t1_None, hs_child_age_None: These variables show moderate positive coefficients.
-h_legume_preg_Ter[0.5,2], h_meat_preg_Ter[10,Inf], h_pavig_t3_NoneLow: Variables with moderate negative associations.
-
-
-
-
-
-### Model 2A, Model 2B, Model 2C, and Model 2D: Regression Analysis for BMI Category (including Metabolomics)
-
-
-
-The objective of Model 2A, 2B, 2C and 2D is to explore the effect of adding groups of variables and the impact of these variables on the outcome through variable importance.
-
-
-
-
-
-```{r, warning=FALSE}
-full_data_with_meta_imputed <- full_data_with_meta %>%
-  mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
-
-full_dataset$hs_bmi_c_cat <- as.factor(full_dataset$hs_bmi_c_cat)
-full_dataset$e3_sex_None <- as.factor(full_dataset$e3_sex_None)
-full_data_with_meta_imputed$hs_bmi_c_cat <- as.factor(full_data_with_meta_imputed$hs_bmi_c_cat)
-full_data_with_meta_imputed$e3_sex_None <- as.factor(full_data_with_meta_imputed$e3_sex_None)
-
-# Formula for the models
-formula1 <- hs_bmi_c_cat ~ h_cohort + e3_sex_None + hs_child_age_None
-formula2 <- hs_bmi_c_cat ~ h_cohort + e3_sex_None + hs_child_age_None + 
-            e3_alcpreg_yn_None + h_cereal_preg_Ter + h_dairy_preg_Ter + 
-            h_fastfood_preg_Ter + h_folic_t1_None + h_fruit_preg_Ter + 
-            h_meat_preg_Ter + h_pamod_t3_None
-
-# cross-validation setup
-train_control <- trainControl(method = "cv", number = 10, classProbs = TRUE, summaryFunction = twoClassSummary)
-
-# Train and test the models using LASSO with CV
-
-# Model A
-x1 <- model.matrix(formula1, data = full_dataset)[, -1]
-y <- full_dataset$hs_bmi_c_cat
-cv.lasso1 <- cv.glmnet(x1, y, alpha = 1, family = "binomial", nfolds = 10)
-best_lambda1 <- cv.lasso1$lambda.min
-
-# Model B
-x2 <- model.matrix(formula2, data = full_dataset)[, -1]
-cv.lasso2 <- cv.glmnet(x2, y, alpha = 1, family = "binomial", nfolds = 10)
-best_lambda2 <- cv.lasso2$lambda.min
-
-# Evaluate Model A
-predictions1 <- predict(cv.lasso1, s = best_lambda1, newx = x1, type = "response")
-roc1 <- roc(y, as.numeric(predictions1))
-auc1 <- auc(roc1)
-predicted_classes1 <- ifelse(predictions1 > 0.5, 1, 0)
-accuracy1 <- mean(predicted_classes1 == y)
-
-# Evaluate Model B
-predictions2 <- predict(cv.lasso2, s = best_lambda2, newx = x2, type = "response")
-roc2 <- roc(y, as.numeric(predictions2))
-auc2 <- auc(roc2)
-predicted_classes2 <- ifelse(predictions2 > 0.5, 1, 0)
-accuracy2 <- mean(predicted_classes2 == y)
-
-# ROC curves data for ggplot2
-roc_data1 <- data.frame(
-  specificity = 1 - roc1$specificities,
-  sensitivity = roc1$sensitivities,
-  Model = "Model 2A: Covariates"
-)
-
-roc_data2 <- data.frame(
-  specificity = 1 - roc2$specificities,
-  sensitivity = roc2$sensitivities,
-  Model = "Model 2B: Covariates + Diet"
-)
-
-# Imputation
-full_data_with_meta_imputed <- full_data_with_meta_imputed %>%
-  mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
-
-# Convert outcome variable
-y_imputed <- as.numeric(as.factor(full_data_with_meta_imputed$hs_bmi_c_cat)) - 1
-
-# Metabolites variables
-metabolites_final <- grep("^meta", names(full_data_with_meta_imputed), value = TRUE)
-
-# Model C: Covariates + Diet + Phthalates
-predictors_model3 <- c(covariates_final, phthalates_final, diet_final)
-X_model3 <- model.matrix(~ . - 1, data = full_data_with_meta_imputed[, predictors_model3])
-group_structure_model3 <- c(rep(1, length(covariates_final)),
-                            rep(2, length(phthalates_final)),
-                            rep(3, length(diet_final)))
-
-# Penalization factors (0 for covariates to force them in the model)
-penalty_factor_model3 <- ifelse(group_structure_model3 == 1, 0, 1)
-
-# Fit group lasso model using grpreg for Model C
-cv_fit_model3 <- cv.grpreg(X_model3, y_imputed, group = group_structure_model3, penalty = "grLasso", penalty.factor = penalty_factor_model3, nfolds = 10)
-best_lambda_model3 <- cv_fit_model3$lambda.min
-best_fit_model3 <- grpreg(X_model3, y_imputed, group = group_structure_model3, penalty = "grLasso", penalty.factor = penalty_factor_model3, lambda = best_lambda_model3)
-predictions_model3 <- predict(best_fit_model3, X_model3, type = "response")
-roc_curve_model3 <- roc(y_imputed, as.numeric(predictions_model3))
-auc_value_model3 <- auc(roc_curve_model3)
-
-# Accuracy for Model C
-predicted_classes_model3 <- ifelse(predictions_model3 > 0.5, 1, 0)
-accuracy_model3 <- mean(predicted_classes_model3 == y_imputed)
-
-# Model D: Covariates + Diet + Phthalates + Metabolites
-predictors_model4 <- c(covariates_final, phthalates_final, diet_final, metabolites_final)
-X_model4 <- model.matrix(~ . - 1, data = full_data_with_meta_imputed[, predictors_model4])
-group_structure_model4 <- c(rep(1, length(covariates_final)),
-                            rep(2, length(phthalates_final)),
-                            rep(3, length(diet_final)),
-                            rep(4, length(metabolites_final)))
-
-# Penalization factors (0 for covariates to force them in the model)
-penalty_factor_model4 <- ifelse(group_structure_model4 == 1, 0, 1)
-
-# Fit group lasso model using grpreg for Model D
-cv_fit_model4 <- cv.grpreg(X_model4, y_imputed, group = group_structure_model4, penalty = "grLasso", penalty.factor = penalty_factor_model4, nfolds = 10)
-best_lambda_model4 <- cv_fit_model4$lambda.min
-best_fit_model4 <- grpreg(X_model4, y_imputed, group = group_structure_model4, penalty = "grLasso", penalty.factor = penalty_factor_model4, lambda = best_lambda_model4)
-predictions_model4 <- predict(best_fit_model4, X_model4, type = "response")
-roc_curve_model4 <- roc(y_imputed, as.numeric(predictions_model4))
-auc_value_model4 <- auc(roc_curve_model4)
-
-# Accuracy for Model D
-predicted_classes_model4 <- ifelse(predictions_model4 > 0.5, 1, 0)
-accuracy_model4 <- mean(predicted_classes_model4 == y_imputed)
-
-# ROC curves data for ggplot2
-roc_data_model3 <- data.frame(
-  specificity = 1 - roc_curve_model3$specificities,
-  sensitivity = roc_curve_model3$sensitivities,
-  Model = "Model 2C: Covariates + Diet + Chemicals"
-)
-
-roc_data_model4 <- data.frame(
-  specificity = 1 - roc_curve_model4$specificities,
-  sensitivity = roc_curve_model4$sensitivities,
-  Model = "Model 2D: Covariates + Diet + Chemicals + Metabolites"
-)
-
-# Combine all ROC data
-roc_data_combined <- rbind(roc_data1, roc_data2, roc_data_model3, roc_data_model4)
-
-# ROC curves with ggplot2
-ggplot(roc_data_combined, aes(x = specificity, y = sensitivity, color = Model)) +
-  geom_line(size = 1) +
-  geom_abline(linetype = "dashed", color = "grey") +
-  labs(title = "ROC Curve Comparison for All Models",
-       x = "1 - Specificity",
-       y = "Sensitivity") +
-  theme_minimal() +
-  theme(legend.position = "right") +
-  scale_color_manual(values = c(
-    "Model 2A: Covariates" = "lightgreen", 
-    "Model 2B: Covariates + Diet" = "lightpink",
-    "Model 2C: Covariates + Diet + Chemicals" = "lavender", 
-    "Model 2D: Covariates + Diet + Chemicals + Metabolites" = "lightblue"
-  ))
-
-
-#print(paste("AUC for Model 2A (Covariates):", auc1))
-#print(paste("AUC for Model 2B (Covariates + Diet):", auc2))
-#print(paste("AUC for Model 2C (Covariates + Diet + Chemicals):", auc_value_model3))
-#print(paste("AUC for Model 2D (Covariates + Diet + Chemicals + Metabolites):", auc_value_model4))
-
-```
-
-
-
-Top 10 Variable Importance
-```{r}
-
-
-get_top_var_importance <- function(var_importance, model_name) {
-  var_importance %>%
-    filter(Coefficient != 0) %>%
-    top_n(10, abs(Coefficient)) %>%
-    mutate(Model = model_name)
-}
-
-# grab variable importance from a model
-extract_var_importance <- function(model, lambda) {
-  coef_model <- as.matrix(coef(model, s = lambda))
-  var_importance <- data.frame(
-    Variable = rownames(coef_model),
-    Coefficient = coef_model[, 1]
-  )
-  var_importance <- var_importance %>%
-    filter(Variable != "(Intercept)")
-  return(var_importance)
-}
-
-
-var_importance1 <- extract_var_importance(cv.lasso1, cv.lasso1$lambda.min)
-var_importance2 <- extract_var_importance(cv.lasso2, cv.lasso2$lambda.min)
-var_importance3 <- extract_var_importance(best_fit_model3, cv_fit_model3$lambda.min)
-var_importance4 <- extract_var_importance(best_fit_model4, cv_fit_model4$lambda.min)
-
-# 10 variable importance for each model
-top_var_importance1 <- get_top_var_importance(var_importance1, "Model A")
-top_var_importance2 <- get_top_var_importance(var_importance2, "Model B")
-top_var_importance3 <- get_top_var_importance(var_importance3, "Model C")
-top_var_importance4 <- get_top_var_importance(var_importance4, "Model D")
-
-
-top_var_importance_combined <- bind_rows(top_var_importance1, top_var_importance2, top_var_importance3, top_var_importance4)
-
-ggplot(top_var_importance_combined, aes(x = reorder(Variable, abs(Coefficient)), y = abs(Coefficient), fill = Model)) +
-  geom_bar(stat = "identity") +
-  coord_flip() +
-  labs(title = "Top 10 Variable Importance Across All Models",
-       x = "Variable",
-       y = "Absolute Coefficient") +
-  theme_minimal() +
-  theme(legend.position = "bottom",
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        plot.title = element_text(size = 15, face = "bold"),
-        strip.text = element_text(size = 10, face = "bold")) +
-  scale_fill_manual(values = c(
-    "Model A" = "lightgreen", 
-    "Model B" = "lightpink",
-    "Model C" = "lavender", 
-    "Model D" = "lightblue"
-  )) +
-  facet_wrap(~ Model, scales = "free_y")
-
-
-```
-The models were trained using 10-fold cross-validation. Model 2A, which includes only covariates, achieved an AUC of 0.624. Model 2B, which adds diet variables to the covariates, improved the AUC to 0.647. Model 2C, which includes covariates, diet variables, and chemical exposures, achieved an AUC of 0.646. The best performance was observed in Model 2D, which includes covariates, diet variables, chemical exposures, and metabolomics data, with an AUC of 0.925.
-
-The ROC curve comparison and variable importance plotsshows the performance and key predictors for each model. The inclusion of metabolomics data in Model 2D significantly enhanced the model's predictive ability. These findings highlight the importance of considering comprehensive sets of variables, including metabolomics data, to improve the accuracy of predictive models for BMI categories. The analysis also demonstrates the value of examining variable importance to identify key predictors and gain insights into the most influential factors affecting BMI.
-
-
-
-
-
-
-
-The objective of this analysis is to explore the effect of adding groups of variables, including metabolomics data, on the predictive performance of BMI categories and to assess the impact of these variables on the outcome through variable importance.
-
-The models were trained using 10-fold cross-validation. Model 2A, which includes only covariates, achieved an AUC of 0.624. Model 2B, which adds diet variables to the covariates, improved the AUC to 0.647. Model 2C, which includes covariates, diet variables, and chemical exposures, achieved an AUC of 0.646. The best performance was observed in Model 2D, which includes covariates, diet variables, chemical exposures, and metabolomics data, with an AUC of 0.925.
-
-The ROC curve comparison and variable importance plots shows the performance and important predictors for each model.
-
-Comparison and Contrast of Top 10 Variable Importance Across Models:
-
-
-Model 2A: Covariates (Grouped Lasso and Lasso)
-* Key Predictors: The most influential variables are related to the cohort categories (h_cohort3, h_cohort6, h_cohort4, h_cohort5, h_cohort2), sex (e3_sex_Nonemale), and child age (hs_child_age_None).
-
-* Importance: Cohort variables dominate the top 10 list, indicating that demographic characteristics and the specific cohort play a significant role in predicting BMI categories when only covariates are considered.
-
-Model 2B: Covariates + Diet (Grouped Lasso and Lasso)
-* Inportant predictors: The addition of diet variables introduces h_cereal_preg_Ter, h_meat_preg_Ter, h_fruit_preg_Ter, and h_pamod_t3_NoneVery Often as important predictors, alongside the cohort variables (h_cohort3, h_cohort6, h_cohort5).
-* Importance: Diet variables such as cereal and meat consumption during pregnancy become significant, suggesting that dietary factors and demographic characteristics, strengthens the model's predictive power.
-
-Model 2C: Covariates + Diet + Chemicals (Grouped Lasso and Lasso)
-* Important Predictors: This model includes chemical exposures, with h_meccp_madj_Log2 and hs_oxominp_madj_Log2 appearing in the top 10 alongside the cohort and diet variables (h_cereal_preg_Ter, h_fruit_preg_Ter, h_fastfood_preg_Ter).
-* Importance: The inclusion of chemical exposures shows that both dietary factors and chemical exposures are important in predicting BMI categories, highlighting the complex interplay between different types of variables.
-
-Model 2D: Covariates + Diet + Chemicals + Metabolites (Grouped Lasso and Lasso)
-* Important Predictors: Metabolomics data dominates the top 10 variables, with metabolites such as metab_161, metab_160, metab_125, metab_138, and metab_58 being the most important predictors.
-* Importance: The introduction of metabolomics data drastically changes the variable importance landscape, with metabolites becoming the primary predictors. This indicates the significant predictive power of detailed biochemical markers from urine metabolomics data in determining BMI categories.
-
-Comparison and Contrast Summary
-* Cohort Variables: Consistently important across all models, especially in Models 2A and 2B.
-* Diet Variables: Gain importance in Models 2B and 2C, indicating the added value of dietary information.
-* Chemical Exposures: Introduced in Model 2C, showing moderate importance alongside diet and cohort variables.
-* Metabolomics Data: Dominates Model 2D, significantly improving the model's AUC.
-
-Since Model 2D performs the best in terms of AUC values, Model 2D will be applied to other algorthims an evlauated by Random Forest and Gradient BOosting Althogrithim.
-
-
-
-
-### Model 3A: Random Forest Model
-
-
-```{r, message=FALSE}
-
-full_data_with_meta_imputed$hs_bmi_c_cat <- as.factor(full_data_with_meta_imputed$hs_bmi_c_cat)
-full_data_with_meta_imputed$e3_sex_None <- as.factor(full_data_with_meta_imputed$e3_sex_None)
-
-
-covariates_final <- c('h_cohort', 'e3_sex_None', 'hs_child_age_None')
-phthalates_final <- c('hs_mbzp_madj_Log2', 'hs_mecpp_madj_Log2', 'hs_mep_madj_Log2', 'hs_mibp_madj_Log2', 'hs_mnbp_madj_Log2', 'hs_oxominp_madj_Log2')
-diet_final <- c('e3_alcpreg_yn_None', 'h_cereal_preg_Ter', 'h_dairy_preg_Ter', 'h_fastfood_preg_Ter', 'h_folic_t1_None', 'h_fruit_preg_Ter', 'h_meat_preg_Ter', 'h_pamod_t3_None')
-
-# Model D: Covariates + Diet + Phthalates + Metabolites
-metabolites_final <- grep("^meta", names(full_data_with_meta_imputed), value = TRUE)
-predictors_model4 <- c(covariates_final, phthalates_final, diet_final, metabolites_final)
-X_model4 <- full_data_with_meta_imputed[, predictors_model4]
-y_model4 <- full_data_with_meta_imputed$hs_bmi_c_cat
-
-
-y_model4 <- factor(y_model4)
-
-# cross-validation setup
-set.seed(2024)
-folds <- createFolds(y_model4, k = 10, list = TRUE, returnTrain = TRUE)
-
-
-auc_values <- vector()
-variable_importance <- vector("list", length = 10)
-
-# cross-validation =19
-for (i in 1:10) {
-  train_indices <- folds[[i]]
-  test_indices <- setdiff(seq_len(nrow(X_model4)), train_indices)
-  
-  X_train <- X_model4[train_indices, ]
-  y_train <- y_model4[train_indices]
-  X_test <- X_model4[test_indices, ]
-  y_test <- y_model4[test_indices]
-  
-  # Train the RF model
-  rf_model <- randomForest(x = X_train, y = y_train, importance = TRUE, ntree = 500)
-  
-  # Predictions on the test set
-  rf_predictions <- predict(rf_model, X_test, type = "prob")[, 2]
-  
-  # AUC
-  roc_rf <- roc(as.numeric(y_test), rf_predictions)
-  auc_rf <- auc(roc_rf)
-  auc_values <- c(auc_values, auc_rf)
-  
-
-  variable_importance[[i]] <- importance(rf_model)
-}
-
-# Average AUC
-mean_auc <- mean(auc_values)
-print(paste("Mean AUC for Random Forest Model D:", mean_auc))
-
-# Average variable importance
-mean_importance <- Reduce("+", variable_importance) / length(variable_importance)
-importance_df <- data.frame(Variable = rownames(mean_importance), MeanDecreaseGini = mean_importance[, 'MeanDecreaseGini'])
-
-# top 10 variables
-top10_importance_df <- importance_df %>%
-  arrange(desc(MeanDecreaseGini)) %>%
-  top_n(10, MeanDecreaseGini)
-
-# Var Importance top 10 variables
-ggplot(top10_importance_df, aes(x = reorder(Variable, MeanDecreaseGini), y = MeanDecreaseGini)) +
-  geom_bar(stat = "identity") +
-  coord_flip() +
-  labs(title = "Top 10 Variable Importance - Random Forest Model D", x = "Variable", y = "Mean Decrease in Gini")
-
-# Plot ROC curve for the last fold
 roc_data_rf <- data.frame(
-  specificity = 1 - roc_rf$specificities,
-  sensitivity = roc_rf$sensitivities,
-  Model = "Random Forest Model D"
+  tpr = rf_roc_curve$sensitivities,
+  fpr = 1 - rf_roc_curve$specificities,
+  model = paste("Random Forest (AUC =", round(rf_auc_value, 2), ")")
 )
 
-# ROC curve with ggplot2
-ggplot(roc_data_rf, aes(x = specificity, y = sensitivity, color = Model)) +
-  geom_line(size = 1) +
-  geom_abline(linetype = "dashed", color = "grey") +
-  labs(title = "ROC Curve for Random Forest Model D",
-       x = "1 - Specificity",
-       y = "Sensitivity") +
-  theme_minimal() +
-  theme(legend.position = "right") +
-  scale_color_manual(values = c("Random Forest Model D" = "darkblue"))
-
-```
-
-
-### Model 3B: Gradient Boosting Machine (GBM)
-AUC 
-
-```{r}
-
-
-full_data_with_meta_imputed$hs_bmi_c_cat <- as.numeric(as.factor(full_data_with_meta_imputed$hs_bmi_c_cat)) - 1
-full_data_with_meta_imputed$e3_sex_None <- as.factor(full_data_with_meta_imputed$e3_sex_None)
-
-
-full_data_with_meta_imputed <- full_data_with_meta_imputed %>%
-  mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
-
-#Redefine
-covariates_final <- c('h_cohort', 'e3_sex_None', 'hs_child_age_None')
-phthalates_final <- c('hs_mbzp_madj_Log2', 'hs_mecpp_madj_Log2', 'hs_mep_madj_Log2', 'hs_mibp_madj_Log2', 'hs_mnbp_madj_Log2', 'hs_oxominp_madj_Log2')
-diet_final <- c('e3_alcpreg_yn_None', 'h_cereal_preg_Ter', 'h_dairy_preg_Ter', 'h_fastfood_preg_Ter', 'h_folic_t1_None', 'h_fruit_preg_Ter', 'h_meat_preg_Ter', 'h_pamod_t3_None')
-
-# Model D: Covariates + Diet + Phthalates + Metabolites
-metabolites_final <- grep("^meta", names(full_data_with_meta_imputed), value = TRUE)
-predictors_model4 <- c(covariates_final, phthalates_final, diet_final, metabolites_final)
-X_model4 <- full_data_with_meta_imputed[, predictors_model4]
-y_model4 <- full_data_with_meta_imputed$hs_bmi_c_cat
-
-# cross-validation setup
-set.seed(2024)
-folds <- createFolds(y_model4, k = 10, list = TRUE)
-
-
-auc_values <- vector()
-variable_importance <- vector("list", length = 10)
-
-#  cross-validation = 10
-for (i in 1:10) {
-  train_indices <- folds[[i]]
-  test_indices <- setdiff(seq_len(nrow(X_model4)), train_indices)
-  
-  X_train <- X_model4[train_indices, ]
-  y_train <- y_model4[train_indices]
-  X_test <- X_model4[test_indices, ]
-  y_test <- y_model4[test_indices]
-  
-  # Train the GBM model
-  gbm_model <- gbm(
-    formula = y_train ~ .,
-    data = data.frame(X_train, y_train),
-    distribution = "bernoulli",
-    n.trees = 500,
-    interaction.depth = 3,
-    shrinkage = 0.01,
-    cv.folds = 10,
-    n.minobsinnode = 10,
-    verbose = FALSE
-  )
-  
-  # Best # of trres 
-  best_trees <- gbm.perf(gbm_model, method = "cv")
-  
-  # Predictions on the test set
-  gbm_predictions <- predict(gbm_model, newdata = X_test, n.trees = best_trees, type = "response")
-  
-  # Calculate AUC
-  roc_gbm <- roc(y_test, gbm_predictions)
-  auc_gbm <- auc(roc_gbm)
-  auc_values <- c(auc_values, auc_gbm)
-  
-
-  variable_importance[[i]] <- summary(gbm_model, n.trees = best_trees, plotit = FALSE)
-}
-
-# Average AUC
-mean_auc <- mean(auc_values)
-print(paste("Mean AUC for GBM Model D:", mean_auc))
-
-# Average variable importance
-mean_importance <- do.call(rbind, variable_importance) %>%
-  group_by(var) %>%
-  summarize(rel.inf = mean(rel.inf)) %>%
-  arrange(desc(rel.inf))
-
-# Select top 20 variables
-top20_importance_gbm <- mean_importance %>%
-  top_n(20, rel.inf)
-
-# VarImportance for top 10 variables
-ggplot(top20_importance_gbm, aes(x = reorder(var, rel.inf), y = rel.inf)) +
-  geom_bar(stat = "identity") +
-  coord_flip() +
-  labs(title = "Top 20 Variable Importance - GBM Model D", x = "Variable", y = "Relative Importance")
-
-#ROC Curve 
 roc_data_gbm <- data.frame(
-  specificity = 1 - roc_gbm$specificities,
-  sensitivity = roc_gbm$sensitivities,
-  Model = "GBM Model D"
+  tpr = gbm_roc_curve$sensitivities,
+  fpr = 1 - gbm_roc_curve$specificities,
+  model = paste("GBM (AUC =", round(gbm_auc_value, 2), ")")
 )
 
-#ROC curve with ggplot2
-ggplot(roc_data_gbm, aes(x = specificity, y = sensitivity, color = Model)) +
+roc_data_combined <- rbind(roc_data_lasso, roc_data_rf, roc_data_gbm)
+
+# ROC curves together
+ggplot(roc_data_combined, aes(x = fpr, y = tpr, color = model)) +
   geom_line(size = 1) +
-  geom_abline(linetype = "dashed", color = "grey") +
-  labs(title = "ROC Curve for GBM Model D",
-       x = "1 - Specificity",
-       y = "Sensitivity") +
+  geom_abline(linetype = "dashed") +
+  labs(title = "ROC Curves for Model 2 (A-C)", x = "False Positive Rate", y = "True Positive Rate") +
   theme_minimal() +
-  theme(legend.position = "right") +
-  scale_color_manual(values = c("GBM Model D" = "darkblue"))
+  scale_color_manual(values = c("blue", "green", "red"))
+
+#cat("LASSO Accuracy:", accuracy_lasso, "\n")
+#cat("Random Forest Accuracy:", accuracy_rf, "\n")
+#cat("GBM Accuracy:", accuracy_gbm, "\n")
 
 ```
 
 
+#### Summary of Model Training and Evaluation
 
-### Conclusion: Comparison of All Models 
+#### Data Preparation:
 
+1. **Dataset**: The dataset used includes  covariates, phthalates, dietary variables, and metabolomic data.
+2. **Outcome Variable**: The target variable for prediction is `hs_bmi_c_cat`.
 
+#### Model Training:
+
+## Model Performance Summary
+
+#### A. LASSO Regression
+* **Best Lambda**: 0.00390940491989417
+* **Performance**:
+  * AUC: 0.8258
+  * Accuracy: 80.46%
+* **Variable Importance**: Located in Model 1D
+* **Possible Reason for Best Performance**: 
+  The LASSO model likely performed the best due to its shrinkage feature, which penalizes less important variables. This is particularly beneficial given the influence of the metabolomic data in the dataset, allowing LASSO to focus on the most predictive features.
+
+#### B. Random Forest
+* **Parameter Tuning**: The model was tuned using a grid search with the following best parameter:
+  * `mtry`: 14
+* **Performance**:
+  * AUC: 0.7508
+  * Accuracy: 72.97%
+* **Variable Importance**:
+  
 ```{r}
-auc_data <- data.frame(
-  Model = c("GBM Model D", "Random Forest Model D", "Group LASSO Model D"),
-  Mean_AUC = c(0.64276948435256, 0.735747185689977, 0.924780193565975)
-)
+var_importance <- varImp(rf_model, scale = FALSE)
+var_importance_df <- as.data.frame(var_importance$importance)
+var_importance_df$Variable <- rownames(var_importance_df)
+var_importance_df <- var_importance_df[order(-var_importance_df$Overall), ]
+top_10_vars <- head(var_importance_df, 10)
 
-# Reordering the factor levels 
-auc_data$Model <- factor(auc_data$Model, levels = c("Group LASSO Model D", "Random Forest Model D", "GBM Model D"))
-
-
-ggplot(auc_data, aes(x = Model, y = Mean_AUC, fill = Model)) +
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = round(Mean_AUC, 3)), vjust = -0.2) +
-  labs(title = "AUC Values for Different Models", x = "Model", y = "Mean AUC") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  scale_fill_brewer(palette = "Set2") 
-
+ggplot(top_10_vars, aes(x = reorder(Variable, Overall), y = Overall)) +
+  geom_bar(stat = "identity", fill = "red") +
+  coord_flip() +
+  labs(title = "Top 10 Variable Importance from Random Forest Model (Gini Importance)",
+       x = "Variables",
+       y = "Importance (Gini)") +
+  theme_minimal()+theme(plot.title = element_text(size = 10))
 
 ```
 
+This bar plot above displays the top 10 variables by importance in the Random Forest model, measured by Gini Importance. The most important variables are m`etab_49`, `metab_95`, `metab_161`, and `metab_8`. Other key variables include `metab_30`, `hs_mnbp_madj_Log2`, `metab_163`, `metab_6`,`metab_48`, and `metab_96`. These variables significantly contribute to the model's predictive power, with `metab_49` having the highest impact.
 
-Reference:
-<https://stat.ethz.ch/Manuscripts/buhlmann/logistic-grouplasso-final.pdf>
-<https://cran.r-project.org/web/packages/grplasso/grplasso.pdf>
+
+#### C. Gradient Boosting Machine (GBM)
+* **Parameter Tuning**: The model was tuned using a grid search with the following best parameters:
+  * `n.trees`: 100
+  * `interaction.depth`: 3
+  * `shrinkage`: 0.1
+  * `n.minobsinnode`: 10
+* **Performance**:
+  * AUC: 0.7757
+  * Accuracy: 77.61%
+* **Variable Importance**:
+
+```{r, message=FALSE, warning=FALSE}
+
+var_importance_gbm <- varImp(gbm_model, scale = FALSE)
+var_importance_gbm_df <- as.data.frame(var_importance_gbm$importance)
+var_importance_gbm_df$Variable <- rownames(var_importance_gbm_df)
+var_importance_gbm_df <- var_importance_gbm_df[order(-var_importance_gbm_df$Overall), ]
+
+
+top_10_vars_gbm <- head(var_importance_gbm_df, 10)
+ggplot(top_10_vars_gbm, aes(x = reorder(Variable, Overall), y = Overall)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  coord_flip() +
+  labs(title = "Top 10 Variable Importance from GBM Model",
+       x = "Variables",
+       y = "Importance") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 10))  
+```
+
+This bar plot displays the top 10 variables by importance in the Gradient Boosting Machine (GBM) model. The most important variables are `metab_49`, `metab_161`, and `metab_95`. Other significant variables include `metab_8`, `metab_47`, `metab_30`, `metab_26`, `metab_120`, `metab_160`, and `metab_6`. These variables significantly contribute to the model's predictive power.
+
+#### ROC and AUC Analysis:
+
+* The ROC curves and AUC values for all three models were plotted to compare their performance visually. The LASSO model showed the highest AUC (0.8258), followed by GBM (0.7757), and Random Forest (0.7508).
+
+
+#### Comparing Model Accuracy 2 (A-C)
+```{r, message=FALSE, warning=FALSE}
+
+models <- c("LASSO", "Random Forest", "GBM")
+accuracy <- c(0.8045977, 0.7297297, 0.7760618)
+
+data <- data.frame(models, accuracy)
+data <- data[order(-data$accuracy),]
+data$accuracy <- data$accuracy * 100
+
+colors <- c("red", "green", "blue")
+
+barplot(data$accuracy, 
+        names.arg = data$models, 
+        col = colors, 
+        ylim = c(0, 100), 
+        main = "Model Accuracy Comparison", 
+        xlab = "Models", 
+        ylab = "Accuracy (%)")
+
+text(x = barplot(data$accuracy, plot = FALSE), 
+     y = data$accuracy, 
+     label = paste0(round(data$accuracy, 2), "%"), 
+     pos = 3, 
+     cex = 0.8, 
+     col = "black")
+
+```
+
+This bar plot above compares the accuracy of three machine learning models: LASSO, GBM, and Random Forest. The LASSO model achieved the highest accuracy at 80.46%, followed by the GBM model at 77.61%, and the Random Forest model at 72.97%. This visualization highlights LASSO as the most accurate model among the three.
+
+
+# Conclusion:
+
+In Model 2, LASSO, Random Forest, and GBM algorithms were evaluated on Model 1D. LASSO achieved the highest accuracy and AUC, demonstrating the best predictive performance. This is likely due to LASSO's shrinkage capability, which effectively manages high-dimensional metabolomic data by focusing on relevant predictors.
+
+Metabolomic data dominated variable importance in the LASSO (Model 1D), Random Forest, and GBM models. The effectiveness of metabolomic data in these models may be attributed to the inherent biological relevance of these variables to BMI. Further analysis is needed to determine the optimal machine learning technique.
+
+LASSO was chosen for this dataset for several reasons. Firstly, it achieved the highest performance in terms of both accuracy and AUC/ROC, indicating the best predictive capability. Additionally, LASSO's shrinkage factor is well-suited for handling high-dimensional data. LASSO effectively reduces the coefficients of less important variables to zero, focusing the model on the most relevant predictors and thereby mitigating overfitting.
+
+The focus is to ensure that all relevant variables are being considered in the model while maximizing predictive performance. Therefore, LASSO is preferred for this dataset due to its ability to handle large and complex datasets, combined with its strong performance metrics.
+
+# Future Work and Limitations:
+
+*Assess Different Models*: While LASSO has shown the best performance, further evaluation of other machine learning models could provide additional insights and improvements.
+
+*Assess Multicollinearity Among Metabolite Data*: Investigating the multicollinearity among metabolite variables will help to understand their interrelationships and to make sure that the model's assumptions are not violated.
+
+*Model Diagnostics*: Perform residual analysis to check the assumptions of the regression model, such as linearity, independence, homoscedasticity, and normality of residuals.
+
+*Hyperparameter Tuning*: Optimize the LASSO regularization parameter (lambda) through cross-validation (ex. LOOCV) to ensure the model is neither over-penalizing nor under-penalizing the predictors.
+
+By undertaking these additional consideration, informed decision-making can contribute to better predictive performance.
+
+# Reference
+- <https://cran.r-project.org/web/packages/grplasso/grplasso.pdf>
+- [Valvi et al., 2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8157593/)
+- [Luo et al., 2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7559247/)
+- [NCBI, 2024](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9824240/)
+- [Serrano et al., 2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7483495/)
+
+
 
