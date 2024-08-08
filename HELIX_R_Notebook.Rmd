@@ -131,9 +131,9 @@ full_data_with_meta_imputed_factored<- read_csv("full_data_with_imputed_factored
 
 # Abstract
 
-This study examines the impact of prenatal environmental exposures on childhood body mass index (BMI) in children aged 6 to 11 years. Using data from the HELIX study, the influence of prenatal dietary intake, phthalate exposure concentrations, metabolomic urine data on BMI is investigated, while controlling for age, sex, and cohort. LASSO Regularization, Random Forest and Gradient Boosting Machines  models were used to assess the predictive power of these prenatal exposures.
+This study examines the impact of prenatal environmental exposures on childhood body mass index (BMI) in children aged 6 to 11 years. Using data from the HELIX study, the influence of prenatal dietary intake, phthalate exposure concentrations, metabolomic urine data on BMI is investigated, while controlling for age, sex, and cohort. LASSO Regularization, Random Forest and Gradient Boosting Machines models were used to assess the predictive power of these prenatal exposures.
 
-The LASSO performed better for the model with metabolimic data, followed by GBM and then random forest due to the nature of the data set.
+The LASSO performed better for the model with metabolomic data, followed by GBM and then random forest due to the nature of the data set.
 
 # Hypothesis
 
@@ -193,7 +193,7 @@ conditions.
 ## Data Preparation
 
 ### Imputation
-Missing values were imputed with the mean for relevant columns.
+Missing values were imputed with the mean for relevant columns. Rows were not removed to retain sample size.
 
 ### Data Splitting
 
@@ -252,24 +252,24 @@ Additional biochemical markers from urine metabolomics data. Click link below fo
 ### Primary Models
 
 Model 1 (A-D) were constructed using Lasso regression techniques to see the effect of added predictors:
-
 - **Lasso Regression**: Used to identify the most relevant predictors by applying L1 regularization.
 
 
 ### Model 1A: Outcome ~ Covariates
 
-Uses the most optimized model from Model 1 on covariates only. *(Lasso Regression)*
+Examines the effect of covariates on BMI. 
 
 ### Model 1B: Outcome ~ Covariates + Diet
 
-Uses the most optimized model from Model 1 on covariates and diet variables. 
+Examines the effect of covariates and diet on BMI. 
+
 ### Model 1C: Outcome ~ Covariates + Diet + Chemicals 
 
 Examines the effect of covariates, diet, and chemical exposures on BMI. 
 
 ### Model 1D: Outcome ~ Covariates + Diet + Chemicals + Meta
 
-Expands Model 1 by including meta variables from urine metabolomics data. 
+Examines the effect of covariates, diet, chemical exposures, and metabolomic data on BMI.  
 
 
 
@@ -281,20 +281,20 @@ Expands Model 1 by including meta variables from urine metabolomics data.
 
 - **Lasso Regression**: Used to identify the most relevant predictors by applying L1 regularization.
 - **Random Forest**: Used to determine the best machine learning algorithm on the best performing dataset.
-- **Gradient Boosting Machine (GBM)**: Used to determine the bet machine learning algorthim on the best performing dataset.
+- **Gradient Boosting Machine (GBM)**: Used to determine the bet machine learning algorithm on the best performing dataset.
 
 ### Model 2A: LASSO on best performing model in Model 1
 
-Applied GLASSO to the best performing dataset with metabolmics data.
+Applied LASSO to the best performing dataset with metabolmics data.
 
 ### Model 2B Random Forest best performing model in Model 1
 
-Applied Random Forest (RF)to the best performing dataset in Model 1. 
+Applied Random Forest (RF) to the best performing data set in Model 1. 
 
 
 ### Model 2C: Gradient Boosting Machine (GBM) on best performing model in Model 1
 
-Applied to Gradient Boosting Machine (GBM) to the best performing dataset in Model 1.
+Applied to Gradient Boosting Machine (GBM) to the best performing data set in Model 1.
 
 
 </div>
@@ -428,7 +428,7 @@ summarytools::view(dfSummary(exposome[,names(exposome) %in% selectExposures],
                    method = "render")
 ```
 
-## Data Summary Exposures: Chemicals (Phtlates)
+## Data Summary Exposures: Chemicals (Phthalates)
 
 ```{r Chemicals summary, attr.output='style="max-height: 100px;"',}
 #Chemical
@@ -677,7 +677,7 @@ After re-categorization, BMI category is moderately imbalanced. Given this moder
 
 ## Correlation Matrix
 
-Below is a correlation matrix to help decide which model is most appropriate for the data.This matric is used to assess presence of multicollinearity. 
+Below is a correlation matrix to help decide which model is most appropriate for the data.This matrix is used to assess presence of multicollinearity. 
 ```{r, warning=FALSE, message=FALSE}
 numeric_vars <- exposome_phenotype_covariates %>%
   dplyr::select(where(is.numeric))
@@ -687,7 +687,6 @@ corrplot(cor_matrix, method = "color", type = "upper", tl.col = "black", tl.srt 
 
 ```
 
-Despite considering grouped LASSO logistic regression to handle multicollinearity, regular LASSO regression was used for model building. To address the issue of multicollinearity, the variable `hs_mehhp_madj_Log2` was removed from the model.
 
 The correlation analysis revealed the following highly correlated pairs (70% threshold):
 
@@ -707,6 +706,9 @@ highly_correlated_pairs
 
 Among these findings, `hs_mehhp_madj_Log2` was found to have a high correlation with `hs_meohp_madj_Log2`, with a correlation coefficient of 0.8076375. Given this high correlation, `hs_mehhp_madj_Log2` was removed from the model to address multicollinearity. 
 
+Despite considering group LASSO logistic regression to handle multicollinearity, regular LASSO regression was used for model building. To address the issue of multicollinearity, the variable `hs_mehhp_madj_Log2` was removed from the model.
+
+
 
 ```{r, message=FALSE, warning=FALSE}
 #Finalize the data set 
@@ -722,11 +724,11 @@ full_data_with_meta_imputed_factored <- full_data_with_meta_imputed %>%
   mutate(across(all_of(factorize_columns), as.factor))
 ```
 
-# Model Building 
+# Model Building and Stastical Analysis 
 
-### Primary Models:Model Building (1A,1B,1C,1D)
+### Primary Models: Model Building (1A,1B,1C,1D)
 
-LASSO Regression model will be used to compare the performance of different models predicting BMI cat. LASSO regression, known for its ability to perform both variable selection and regularization, is used here to determine the impact of varying predictor sets on model accuracy. The goal is to identify which combination of predictor variables yields the best model performance. AUC and important variables will be highlighted.
+LASSO Regression model will be used to compare the performance of different models predicting BMI categories. LASSO regression, known for its ability to perform both variable selection and regularization, is used here to determine the impact of varying predictor sets on model accuracy. The goal is to identify which combination of predictor variables yields the best model performance. AUC and important variables will be highlighted.
 
 * *Model 1A*: Outcome ~ Covariates 
 * *Model 1B*: Outcomes ~ Covariates + Diet
@@ -828,13 +830,13 @@ legend("bottomright", inset = c(-0.01, 0), legend = c(
 ```
 
 
-The evaluation of model performance using ROC curves and AUC values showed a significant differences in predictive accuracy across the models. Model 1A, which only included covariates, had an AUC of 0.59, indicating limited discriminatory power. Adding dietary variables in Model 1B improved the AUC slightly to 0.61. Model 1C, which included both dietary variables and phthalates, showed a slight increase in AUC to 0.62. However, the most substantial improvement was observed in Model 1D, which added metabolomic data in addition to covariates, diet, and phthalates, achieved an AUC of 0.84. Adding metabolmic data significantly improved the predictive performance in distinguishing between the two BMI categories.
+The evaluation of model performance using ROC curves and AUC values showed a significant differences in predictive accuracy across the models. Model 1A, which only included covariates, had an AUC of 0.59, indicating limited discriminatory power. Adding dietary variables in Model 1B improved the AUC slightly to 0.61. Model 1C, which included both dietary variables and phthalates, showed a slight increase in AUC to 0.62. However, the most substantial improvement was observed in Model 1D, which added metabolomic data in addition to covariates, diet, and phthalates, achieved an AUC of 0.84. Adding metabolomic data significantly improved the predictive performance in distinguishing between the two BMI categories.
 
 
 
 #### Variable Importance for Model 1:
 
-Variable importance (Top 10) quantifies how much each predictor contributes to the performance of a predictive model. It helps identify which variables have the most significant impact on the model’s predictions. Here’s a brief overview of which variables are the most influential when building the model: 
+Variable importance (Top 10) quantifies how much each predictor contributes to the performance of a predictive model. It helps identify which variables have the most significant impact on the model’s predictions. Here’s an overview of which variables are the most influential when building the model: 
 
 ```{r, message=FALSE, warning=FALSE}
 par(mfrow = c(2, 2)) 
@@ -850,11 +852,11 @@ for (i in 1:length(results)) {
 ```
 
 
-The variable importance analysis across four models (1A, 1B, 1C, and 1D) shows how different variables are influential in predicting outcomes. In Model 1A, cohort variables such as `h_cohort3` and `h_cohort6` are the most influential, meaning that cohort has the biggest influence on the model's predictions. Moving to Model 1B, while cohort variables like `h_cohort5` and `h_cohort3` remain important, dietary factors including `h_meal_preg_Tc63` and `h_cereal_preg_Tc63` begin to show substantial influence, meaning that dietary habits during pregnancy significantly impact BMI.
+The variable importance analysis across four models (1A, 1B, 1C, and 1D) shows how different variables are influential in predicting outcomes. In Model 1A, cohort variables such as `h_cohort3` and `h_cohort6` are the most influential, meaning that cohort has the biggest influence on the model's predictions. Moving to Model 1B, while cohort variables like `h_cohort5` and `h_cohort3` remain important, dietary factors including `h_meal_preg_Tc63` and `h_cereal_preg_Tc63` begin to show substantial influence, meaning that dietary habits during pregnancy significantly impact BMI on children age 6-11.
 
 Model 1C presents a more complex interaction, where cohort variables continue to be influential, but dietary and phthalate variables such as `h_meal_preg_Tc63` and `e3_agepreg3y_None2` also important. The most infuential change is observed in Model 1D, where the addition of metabolomic data dramatically shifts the variable importance landscape. Metabolomic variables like `metab_161` and `metab_160` show the highest influence, far surpassing the importance of cohorts and other variables, highlighting the dominant predictive power of metabolomic data.
 
-Overall, the analysis reveals that while cohort and dietary factors are significant, the inclusion of metabolomic data provides a much stronger predictive power. This means that metabolomic factors are crucial for understanding how BMI is affected. Moving forward, incorporating metabolomic data and exploring other machine learning algorithms will be help refine the predictions and gain deeper understanding into the  effect of variables on BMI in children ages 6-11.
+Overall, the analysis reveals that while cohort and dietary factors are significant, the inclusion of metabolomic data provides a much stronger predictive power. This means that metabolomic factors are important for understanding how BMI is affected. Moving forward, incorporating metabolomic data and exploring other machine learning algorithms will be help refine the predictions and help with a  deeper understanding of the effect of variables on BMI in children ages 6-11.
 
 ### Secondary Models: Advanced Machine Learning Modeling (2A,2B,2C)
 
@@ -862,20 +864,18 @@ In this section, the machine learning models will be refined to assess the best-
 
 
 ```{r, message=FALSE, warning=FALSE}
-
 data <- full_data_with_meta_imputed_factored
 outcome <- "hs_bmi_c_cat"
 covariates_final <- c("h_cohort", "e3_sex_None")
 phthalates_final <- c("hs_mbzp_madj_Log2", "hs_mecpp_madj_Log2", "hs_mep_madj_Log2", 
                       "hs_mibp_madj_Log2", "hs_mnbp_madj_Log2", "hs_oxominp_madj_Log2", 
-                      "hs_mehhp_madj_Log2", "hs_meohp_madj_Log2", "hs_ohminp_madj_Log2", 
-                      "hs_mehp_madj_Log2")
+                       "hs_meohp_madj_Log2", "hs_ohminp_madj_Log2", 
+                      "hs_mehp_madj_Log2") 
 diet_final <- c("e3_alcpreg_yn_None", "h_cereal_preg_Ter", "h_dairy_preg_Ter", 
                 "h_fastfood_preg_Ter", "h_folic_t1_None", "h_fruit_preg_Ter", 
                 "h_meat_preg_Ter", "h_pamod_t3_None", "h_fish_preg_Ter", 
                 "h_legume_preg_Ter", "h_pavig_t3_None", "h_veg_preg_Ter")
 meta_final <- grep("^metab_", names(data), value = TRUE)
-
 
 all_vars <- c(covariates_final, phthalates_final, diet_final, meta_final)
 X <- as.matrix(data[all_vars])
@@ -914,7 +914,7 @@ accuracy_lasso <- mean(y_pred_lasso == y_test)
 
 data$hs_bmi_c_cat <- as.factor(data$hs_bmi_c_cat)
 
-
+# HO set
 set.seed(999) 
 trainIndex <- createDataPartition(data$hs_bmi_c_cat, p = .8, list = FALSE, times = 1)
 dataTrain <- data[trainIndex, ]
@@ -1013,16 +1013,14 @@ ggplot(roc_data_combined, aes(x = fpr, y = tpr, color = model)) +
 ```
 
 
-#### Summary of Model Training and Evaluation
+##### Summary of Model Training and Evaluation for Secondary Model
 
 #### Data Preparation:
 
 1. **Dataset**: The dataset used includes  covariates, phthalates, dietary variables, and metabolomic data.
 2. **Outcome Variable**: The target variable for prediction is `hs_bmi_c_cat`.
 
-#### Model Training:
-
-## Model Performance Summary
+#### Model Performance Summary
 
 #### A. LASSO Regression
 * **Best Lambda**: 0.00390940491989417
@@ -1058,7 +1056,7 @@ ggplot(top_10_vars, aes(x = reorder(Variable, Overall), y = Overall)) +
 
 ```
 
-This bar plot above displays the top 10 variables by importance in the Random Forest model, measured by Gini Importance. The most important variables are m`etab_49`, `metab_95`, `metab_161`, and `metab_8`. Other key variables include `metab_30`, `hs_mnbp_madj_Log2`, `metab_163`, `metab_6`,`metab_48`, and `metab_96`. These variables significantly contribute to the model's predictive power, with `metab_49` having the highest impact.
+This bar plot above displays the top 10 variables by importance in the Random Forest model, measured by Gini Importance. The most important variables are `metab_49`, `metab_95`, `metab_161`, and `metab_8`. Other key variables include `metab_30`, `hs_mnbp_madj_Log2`, `metab_163`, `metab_6`,`metab_48`, and `metab_96`. These variables significantly contribute to the model's predictive power, with `metab_49` having the highest impact.
 
 
 #### C. Gradient Boosting Machine (GBM)
@@ -1127,22 +1125,22 @@ text(x = barplot(data$accuracy, plot = FALSE),
 
 ```
 
-This bar plot above compares the accuracy of three machine learning models: LASSO, GBM, and Random Forest. The LASSO model achieved the highest accuracy at 80.46%, followed by the GBM model at 77.61%, and the Random Forest model at 72.97%. This visualization highlights LASSO as the most accurate model among the three.
+This bar plot above compares the accuracy of three machine learning models: LASSO, GBM, and Random Forest on Model 1D. The LASSO model achieved the highest accuracy at 80.46%, followed by the GBM model at 77.61%, and the Random Forest model at 72.97%. This visualization highlights LASSO as the most accurate model among the three.
 
 
-# Conclusion:
+# Conclusion
 
-In Model 2, LASSO, Random Forest, and GBM algorithms were evaluated on Model 1D. LASSO achieved the highest accuracy and AUC, demonstrating the best predictive performance. This is likely due to LASSO's shrinkage capability, which effectively manages high-dimensional metabolomic data by focusing on relevant predictors.
+In Model 2, LASSO, Random Forest, and GBM algorithms were evaluated on Model 1D. LASSO achieved the highest accuracy and AUC, demonstrating the best predictive performance. This is likely due to LASSO's shrinkage capability, which manages high-dimensional metabolomic data by focusing on relevant predictors.
 
-Metabolomic data dominated variable importance in the LASSO (Model 1D), Random Forest, and GBM models. The effectiveness of metabolomic data in these models may be attributed to the inherent biological relevance of these variables to BMI. Further analysis is needed to determine the optimal machine learning technique.
+Metabolomic data dominated variable importance in the LASSO (Model 1D), Random Forest, and GBM models. The strength of metabolomic data in these models may be attributed to the inherent biological relevance of these variables to BMI. Further analysis is needed to determine the optimal machine learning technique.
 
 LASSO was chosen for this dataset for several reasons. Firstly, it achieved the highest performance in terms of both accuracy and AUC/ROC, indicating the best predictive capability. Additionally, LASSO's shrinkage factor is well-suited for handling high-dimensional data. LASSO effectively reduces the coefficients of less important variables to zero, focusing the model on the most relevant predictors and thereby mitigating overfitting.
 
 The focus is to ensure that all relevant variables are being considered in the model while maximizing predictive performance. Therefore, LASSO is preferred for this dataset due to its ability to handle large and complex datasets, combined with its strong performance metrics.
 
-# Future Work and Limitations:
+# Future Work and Limitations
 
-*Assess Different Models*: While LASSO has shown the best performance, further evaluation of other machine learning models could provide additional insights and improvements.
+*Assess Different Models*: While LASSO has shown the best performance, further evaluation of other machine learning models could provide additional information and improvements.
 
 *Assess Multicollinearity Among Metabolite Data*: Investigating the multicollinearity among metabolite variables will help to understand their interrelationships and to make sure that the model's assumptions are not violated.
 
